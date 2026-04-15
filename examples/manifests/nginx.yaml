@@ -1,0 +1,49 @@
+apiVersion: scm/v1
+kind: Manifest
+metadata:
+  name: nginx-demo
+  labels:
+    team: platform
+target:
+  hosts:
+    - demo-host-1
+  selector:
+    matchLabels:
+      role: web
+resources:
+  - id: nginx_pkg
+    type: package
+    name: nginx
+    state: installed
+  - id: nginx_conf
+    type: file
+    path: /etc/nginx/nginx.conf
+    content: |
+      user www-data;
+      worker_processes auto;
+      pid /run/nginx.pid;
+      events { worker_connections 768; }
+      http {
+        sendfile on;
+        server {
+          listen 80 default_server;
+          location / {
+            return 200 "managed by scm\n";
+          }
+        }
+      }
+    mode: "0644"
+    owner: root
+    group: root
+    state: present
+    requires:
+      - nginx_pkg
+    notifies:
+      - nginx_svc
+  - id: nginx_svc
+    type: service
+    name: nginx
+    state: running
+    enabled: true
+    requires:
+      - nginx_conf

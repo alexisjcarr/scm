@@ -1,0 +1,19 @@
+scm/
+  bin/
+    scmctl
+    scmctld
+    scmctld-agent
+  etc/scm/
+    scmctld.yaml.example
+    scmctld-agent.yaml.example
+  lib/systemd/system/
+    scmctld.service
+    scmctld-agent.service
+  share/scm/examples/manifests/
+    nginx.yaml
+  share/doc/scm/
+    README.md
+    install.md
+    architecture.md
+    dsl.md
+  install.sh
