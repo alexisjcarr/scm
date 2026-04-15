@@ -1,0 +1,79 @@
+apiVersion: scm/v1
+kind: Manifest
+metadata:
+  name: php-app-two-hosts
+  labels:
+    team: sre
+    service: php-demo
+target:
+  hosts:
+    - php-web-1
+    - php-web-2
+resources:
+  - id: nginx_pkg
+    type: package
+    name: nginx
+    state: installed
+  - id: php_fpm_pkg
+    type: package
+    name: php8.3-fpm
+    state: installed
+  - id: app_index
+    type: file
+    path: /var/www/scm-php-demo/index.php
+    content: |
+      <?php
+      header("Content-Type: text/plain");
+      echo "Hello, world!\n";
+      ?>
+    mode: "0644"
+    owner: www-data
+    group: www-data
+    state: present
+    requires:
+      - php_fpm_pkg
+    notifies:
+      - php_fpm_svc
+  - id: nginx_site
+    type: file
+    path: /etc/nginx/sites-available/default
+    content: |
+      server {
+        listen 80 default_server;
+        listen [::]:80 default_server;
+        root /var/www/scm-php-demo;
+        index index.php index.html;
+
+        location / {
+          try_files $uri $uri/ /index.php?$query_string;
+        }
+
+        location ~ \.php$ {
+          include snippets/fastcgi-php.conf;
+          fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+        }
+      }
+    mode: "0644"
+    owner: root
+    group: root
+    state: present
+    requires:
+      - nginx_pkg
+      - app_index
+      - php_fpm_pkg
+    notifies:
+      - nginx_svc
+  - id: php_fpm_svc
+    type: service
+    name: php8.3-fpm
+    state: running
+    enabled: true
+    requires:
+      - php_fpm_pkg
+  - id: nginx_svc
+    type: service
+    name: nginx
+    state: running
+    enabled: true
+    requires:
+      - nginx_site

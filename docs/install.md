@@ -23,6 +23,13 @@ sudo ./install.sh
 
 4. Review `/etc/scm/scmctld.yaml` and `/etc/scm/scmctld-agent.yaml`.
 
+The packaged units run as dedicated service users:
+
+- `scmctld`
+- `scmctld-agent`
+
+The installer also places a narrow sudoers drop-in so `scmctld-agent` can manage packages, services, and privileged file writes without running the entire daemon as root.
+
 5. Start the services:
 
 ```bash
@@ -35,3 +42,5 @@ sudo systemctl enable --now scmctld-agent
 ```bash
 scmctl apply -f ./share/scm/examples/manifests/nginx.yaml --server 127.0.0.1:8443 --watch
 ```
+
+For the local-control-plane plus remote-EC2 demo flow, see `/Users/alexisjcarr/learning/scm/docs/takehome.md`.

@@ -77,3 +77,8 @@ resources:
 - all `requires` and `notifies` references must exist
 - `notifies` may only point to service resources
 - dependency cycles are rejected
+
+## Ubuntu-focused examples
+
+- `/Users/alexisjcarr/learning/scm/examples/manifests/nginx.yaml` is the smallest service demo.
+- `/Users/alexisjcarr/learning/scm/examples/manifests/php-app-two-hosts.yaml` is the take-home example for two Ubuntu web hosts.

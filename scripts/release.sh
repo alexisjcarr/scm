@@ -16,7 +16,7 @@ build_arch() {
   local archive="${DIST_DIR}/scm_${VERSION}_${goos}_${goarch}.tar.gz"
 
   rm -rf "${out_dir}"
-  mkdir -p "${out_dir}/bin" "${out_dir}/etc/scm" "${out_dir}/lib/systemd/system" "${out_dir}/share/scm/examples/manifests" "${out_dir}/share/doc/scm"
+  mkdir -p "${out_dir}/bin" "${out_dir}/etc/scm" "${out_dir}/install" "${out_dir}/lib/systemd/system" "${out_dir}/share/scm/examples/manifests" "${out_dir}/share/doc/scm" "${out_dir}/sudoers"
 
   GOOS="${goos}" GOARCH="${goarch}" go build -o "${out_dir}/bin/scmctl" ./cmd/scmctl
   GOOS="${goos}" GOARCH="${goarch}" go build -o "${out_dir}/bin/scmctld" ./cmd/scmctld
@@ -27,12 +27,17 @@ build_arch() {
   cp "${ROOT_DIR}/packaging/systemd/scmctld.service" "${out_dir}/lib/systemd/system/scmctld.service"
   cp "${ROOT_DIR}/packaging/systemd/scmctld-agent.service" "${out_dir}/lib/systemd/system/scmctld-agent.service"
   cp "${ROOT_DIR}/examples/manifests/nginx.yaml" "${out_dir}/share/scm/examples/manifests/nginx.yaml"
+  cp "${ROOT_DIR}/examples/manifests/php-app-two-hosts.yaml" "${out_dir}/share/scm/examples/manifests/php-app-two-hosts.yaml"
   cp "${ROOT_DIR}/README.md" "${out_dir}/share/doc/scm/README.md"
   cp "${ROOT_DIR}/docs/install.md" "${out_dir}/share/doc/scm/install.md"
   cp "${ROOT_DIR}/docs/architecture.md" "${out_dir}/share/doc/scm/architecture.md"
   cp "${ROOT_DIR}/docs/dsl.md" "${out_dir}/share/doc/scm/dsl.md"
+  cp "${ROOT_DIR}/docs/takehome.md" "${out_dir}/share/doc/scm/takehome.md"
   cp "${ROOT_DIR}/packaging/install/install.sh" "${out_dir}/install.sh"
+  cp "${ROOT_DIR}/packaging/install/scm-agent-fileop" "${out_dir}/install/scm-agent-fileop"
+  cp "${ROOT_DIR}/packaging/sudoers/scmctld-agent" "${out_dir}/sudoers/scmctld-agent"
 
+  chmod +x "${out_dir}/install/scm-agent-fileop"
   chmod +x "${out_dir}/install.sh"
   tar -C "${STAGE_DIR}" -czf "${archive}" scm
 }
