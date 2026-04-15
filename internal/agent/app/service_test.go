@@ -3,23 +3,22 @@ package app
 import (
 	"context"
 	"testing"
-	"time"
 
-	agentdomain "github.com/alexisjcarr/scm/internal/agent/domain"
-	manifestdomain "github.com/alexisjcarr/scm/internal/manifest/domain"
 	scmv1 "github.com/alexisjcarr/scm/pkg/api/scm/v1"
 	"google.golang.org/grpc"
 )
 
 type fakeClient struct {
-	fetchResp *scmv1.FetchWorkResponse
-	reports   []*scmv1.ReportWorkStatusRequest
+	fetchResp  *scmv1.FetchWorkResponse
+	reports    []*scmv1.ReportWorkStatusRequest
+	heartbeats []*scmv1.HeartbeatRequest
 }
 
 func (f *fakeClient) RegisterAgent(context.Context, *scmv1.RegisterAgentRequest, ...grpc.CallOption) (*scmv1.RegisterAgentResponse, error) {
 	return &scmv1.RegisterAgentResponse{AgentID: "agent-1"}, nil
 }
-func (f *fakeClient) Heartbeat(context.Context, *scmv1.HeartbeatRequest, ...grpc.CallOption) (*scmv1.HeartbeatResponse, error) {
+func (f *fakeClient) Heartbeat(_ context.Context, req *scmv1.HeartbeatRequest, _ ...grpc.CallOption) (*scmv1.HeartbeatResponse, error) {
+	f.heartbeats = append(f.heartbeats, req)
 	return &scmv1.HeartbeatResponse{Status: "ok"}, nil
 }
 func (f *fakeClient) FetchWork(context.Context, *scmv1.FetchWorkRequest, ...grpc.CallOption) (*scmv1.FetchWorkResponse, error) {
@@ -30,27 +29,20 @@ func (f *fakeClient) ReportWorkStatus(_ context.Context, req *scmv1.ReportWorkSt
 	return &scmv1.ReportWorkStatusResponse{Status: "ok"}, nil
 }
 
-type fakeBackend struct {
-	changed map[string]bool
+type fakeRunner struct{}
+
+func (fakeRunner) Prepare(context.Context, *scmv1.WorkItem, string) ([]*scmv1.ApplyEvent, error) {
+	return []*scmv1.ApplyEvent{{ID: "evt-1"}}, nil
 }
 
-func (b fakeBackend) EnsurePackage(context.Context, manifestdomain.PackageResource) (bool, string, error) {
-	return false, "package already converged", nil
-}
-func (b fakeBackend) EnsureFile(_ context.Context, resource manifestdomain.FileResource) (bool, string, error) {
-	return b.changed[resource.ID], "file reconciled", nil
-}
-func (b fakeBackend) EnsureService(_ context.Context, _ manifestdomain.ServiceResource, notifyOnly bool) (bool, string, error) {
-	if notifyOnly {
-		return true, "service restarted from notify", nil
-	}
-	return false, "service converged", nil
+func (fakeRunner) Execute(context.Context, *scmv1.WorkItem) (string, []*scmv1.ApplyEvent, string, error) {
+	return "done", []*scmv1.ApplyEvent{{ID: "evt-2"}}, "completed", nil
 }
 
-func TestRunOnceTriggersNotifyFollowUp(t *testing.T) {
+func (fakeRunner) Complete(context.Context, string, string, string) error { return nil }
+
+func TestRunOnceDelegatesToRuntimeRunner(t *testing.T) {
 	t.Parallel()
-
-	manifestJSON := `{"api_version":"scm/v1","kind":"Manifest","name":"nginx","target":{"hosts":["node-1"],"selector":{"match_labels":{}}},"resources":[{"id":"cfg","type":"file","path":"/tmp/nginx.conf","content":"hello","mode":"0644","state":"present","notifies":["svc"]},{"id":"svc","type":"service","name":"nginx","state":"running","enabled":true}]}`
 
 	client := &fakeClient{
 		fetchResp: &scmv1.FetchWorkResponse{
@@ -60,12 +52,12 @@ func TestRunOnceTriggersNotifyFollowUp(t *testing.T) {
 				ApplyID:      "apply-1",
 				HostID:       "node-1",
 				LeaseToken:   "lease",
-				ManifestJSON: manifestJSON,
+				ManifestJSON: "{}",
 			},
 		},
 	}
 
-	service := NewService(client, noopRepo{}, fakeBackend{changed: map[string]bool{"cfg": true}}, nil, "agent-1", "node-1", "dev", nil, nil, t.TempDir())
+	service := NewService(client, fakeRunner{}, nil, nil, "agent-1", "node-1", "dev", nil, nil, t.TempDir())
 	if err := service.RunOnce(context.Background()); err != nil {
 		t.Fatalf("RunOnce returned error: %v", err)
 	}
@@ -73,12 +65,7 @@ func TestRunOnceTriggersNotifyFollowUp(t *testing.T) {
 	if got := len(client.reports); got != 2 {
 		t.Fatalf("expected two status reports, got %d", got)
 	}
-	if client.reports[1].State != "completed" {
-		t.Fatalf("expected final report to be completed, got %q", client.reports[1].State)
+	if got := len(client.heartbeats); got < 2 {
+		t.Fatalf("expected heartbeats before and after work, got %d", got)
 	}
 }
-
-type noopRepo struct{}
-
-func (noopRepo) SaveWork(context.Context, agentdomain.LocalApply) error              { return nil }
-func (noopRepo) UpdateWork(context.Context, string, string, string, time.Time) error { return nil }

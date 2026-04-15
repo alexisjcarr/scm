@@ -9,8 +9,11 @@
 ## Domain boundaries
 
 - `internal/manifest`: YAML DSL, validation, dependency graphing, and compiled transport shape.
-- `internal/controlplane`: apply submission, target resolution, work creation, safe work claiming, apply aggregation, and the UI.
-- `internal/agent`: local work persistence, fixed apply flow, and idempotent resource reconciliation.
+- `internal/controlplane`: the facade layer for the control plane, with smaller subdomains for:
+  - `inventory`: agent registration, heartbeats, and target resolution
+  - `apply`: apply submission, apply read models, and apply status aggregation
+  - `workqueue`: lease-based work claiming and work state transitions
+- `internal/agent`: agent orchestration, with `internal/agent/runtime` owning local work persistence and idempotent resource reconciliation.
 - `internal/platform`: shared config, logging, metrics, gRPC, clock, and version helpers.
 
 ## Work dispatch model

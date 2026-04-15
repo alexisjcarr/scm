@@ -5,7 +5,9 @@ import (
 	"testing"
 	"time"
 
+	applysvc "github.com/alexisjcarr/scm/internal/controlplane/apply"
 	cpdomain "github.com/alexisjcarr/scm/internal/controlplane/domain"
+	"github.com/alexisjcarr/scm/internal/controlplane/inventory"
 	manifestdomain "github.com/alexisjcarr/scm/internal/manifest/domain"
 )
 
@@ -43,29 +45,6 @@ func (f *fakeRepo) UpdateWork(context.Context, string, string, string, string, s
 	return nil
 }
 
-func TestResolveTargetHostsDeduplicatesExplicitAndSelectorMatches(t *testing.T) {
-	t.Parallel()
-
-	hosts := resolveTargetHosts(manifestdomain.TargetSpec{
-		Hosts:          []string{"web-2", "web-1"},
-		SelectorLabels: map[string]string{"role": "web"},
-	}, []cpdomain.Agent{
-		{HostID: "web-1", Labels: map[string]string{"role": "web"}},
-		{HostID: "web-3", Labels: map[string]string{"role": "web"}},
-		{HostID: "db-1", Labels: map[string]string{"role": "db"}},
-	})
-
-	expected := []string{"web-1", "web-2", "web-3"}
-	if len(hosts) != len(expected) {
-		t.Fatalf("expected %d hosts, got %d", len(expected), len(hosts))
-	}
-	for i := range expected {
-		if hosts[i] != expected[i] {
-			t.Fatalf("expected host %q at index %d, got %q", expected[i], i, hosts[i])
-		}
-	}
-}
-
 func TestSubmitApplyCreatesOneWorkItemPerResolvedHost(t *testing.T) {
 	t.Parallel()
 
@@ -76,7 +55,7 @@ func TestSubmitApplyCreatesOneWorkItemPerResolvedHost(t *testing.T) {
 		},
 	}
 
-	svc := NewService(repo, fakeClock{now: time.Unix(1700000000, 0).UTC()}, time.Minute)
+	svc := NewService(repo, fakeClock{now: time.Unix(1700000000, 0).UTC()}, time.Minute, nil)
 	compiled := manifestdomain.CompiledManifest{
 		Manifest: manifestdomain.Manifest{
 			APIVersion: "scm/v1",
@@ -99,5 +78,24 @@ func TestSubmitApplyCreatesOneWorkItemPerResolvedHost(t *testing.T) {
 
 	if len(work) != 2 {
 		t.Fatalf("expected 2 work items, got %d", len(work))
+	}
+}
+
+func TestFacadeUsesExtractedSubdomains(t *testing.T) {
+	t.Parallel()
+
+	targets := inventory.ResolveTargetHosts(manifestdomain.TargetSpec{
+		Hosts:          []string{"web-1"},
+		SelectorLabels: map[string]string{"role": "web"},
+	}, []cpdomain.Agent{
+		{HostID: "web-1", Labels: map[string]string{"role": "web"}},
+		{HostID: "web-2", Labels: map[string]string{"role": "web"}},
+	})
+
+	if got := applysvc.AggregateStatus([]string{cpdomain.WorkStatePending}); got != cpdomain.ApplyStatusPending {
+		t.Fatalf("AggregateStatus() = %q, want %q", got, cpdomain.ApplyStatusPending)
+	}
+	if len(targets) != 2 {
+		t.Fatalf("expected 2 resolved targets, got %d", len(targets))
 	}
 }

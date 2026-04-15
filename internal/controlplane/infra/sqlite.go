@@ -9,7 +9,10 @@ import (
 	"time"
 
 	cpapp "github.com/alexisjcarr/scm/internal/controlplane/app"
+	applysvc "github.com/alexisjcarr/scm/internal/controlplane/apply"
 	cpdomain "github.com/alexisjcarr/scm/internal/controlplane/domain"
+	"github.com/alexisjcarr/scm/internal/controlplane/inventory"
+	"github.com/alexisjcarr/scm/internal/controlplane/workqueue"
 	_ "modernc.org/sqlite"
 )
 
@@ -19,6 +22,9 @@ type SQLiteRepository struct {
 }
 
 var _ cpapp.Repository = (*SQLiteRepository)(nil)
+var _ inventory.Repository = (*SQLiteRepository)(nil)
+var _ applysvc.Store = (*SQLiteRepository)(nil)
+var _ workqueue.Store = (*SQLiteRepository)(nil)
 
 func NewSQLiteRepository(dsn string) (*SQLiteRepository, error) {
 	db, err := sql.Open("sqlite", dsn)
@@ -485,36 +491,15 @@ func aggregateApplyStatus(ctx context.Context, tx *sql.Tx, applyID string) (stri
 	}
 	defer rows.Close()
 
-	allCompleted := true
-	anyRunning := false
-	anyFailed := false
+	states := make([]string, 0, 8)
 	for rows.Next() {
 		var state string
 		if err := rows.Scan(&state); err != nil {
 			return "", fmt.Errorf("scan work item state: %w", err)
 		}
-		switch state {
-		case cpdomain.WorkStateFailed:
-			anyFailed = true
-			allCompleted = false
-		case cpdomain.WorkStateCompleted:
-		case cpdomain.WorkStateRunning, cpdomain.WorkStateAssigned:
-			anyRunning = true
-			allCompleted = false
-		default:
-			allCompleted = false
-		}
+		states = append(states, state)
 	}
-	if anyFailed {
-		return cpdomain.ApplyStatusFailed, nil
-	}
-	if allCompleted {
-		return cpdomain.ApplyStatusCompleted, nil
-	}
-	if anyRunning {
-		return cpdomain.ApplyStatusRunning, nil
-	}
-	return cpdomain.ApplyStatusPending, nil
+	return applysvc.AggregateStatus(states), nil
 }
 
 func insertEvents(ctx context.Context, tx *sql.Tx, events []cpdomain.ApplyEvent) error {
