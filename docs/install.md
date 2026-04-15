@@ -43,4 +43,4 @@ sudo systemctl enable --now scmctld-agent
 scmctl apply -f ./share/scm/examples/manifests/nginx.yaml --server 127.0.0.1:8443 --watch
 ```
 
-For the local-control-plane plus remote-EC2 demo flow, see `/Users/alexisjcarr/learning/scm/docs/takehome.md`.
+For the local-control-plane plus remote-EC2 demo flow, see `docs/takehome.md`.

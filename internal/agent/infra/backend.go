@@ -17,20 +17,22 @@ import (
 
 // LinuxBackend implements resource reconciliation for Ubuntu-like hosts.
 type LinuxBackend struct {
-	Runner         CommandRunner
-	FileHelperPath string
+	Runner           CommandRunner
+	FileHelperPath   string
+	PackageInstalled func(context.Context, string) bool
 }
 
 // NewLinuxBackend constructs the default Linux backend with sudo-aware command execution.
 func NewLinuxBackend() LinuxBackend {
 	return LinuxBackend{
-		Runner:         NewExecRunner(os.Geteuid() != 0),
-		FileHelperPath: DefaultFileHelperPath,
+		Runner:           NewExecRunner(os.Geteuid() != 0),
+		FileHelperPath:   DefaultFileHelperPath,
+		PackageInstalled: packageInstalled,
 	}
 }
 
 func (b LinuxBackend) EnsurePackage(ctx context.Context, resource manifestdomain.PackageResource) (bool, string, error) {
-	installed := exec.CommandContext(ctx, "dpkg", "-s", resource.Name).Run() == nil
+	installed := b.packageInstalled(ctx, resource.Name)
 	switch resource.State {
 	case manifestdomain.PackageStateInstalled:
 		if installed {
@@ -215,6 +217,13 @@ func (b LinuxBackend) runner() CommandRunner {
 	return NewExecRunner(os.Geteuid() != 0)
 }
 
+func (b LinuxBackend) packageInstalled(ctx context.Context, packageName string) bool {
+	if b.PackageInstalled != nil {
+		return b.PackageInstalled(ctx, packageName)
+	}
+	return packageInstalled(ctx, packageName)
+}
+
 func (b LinuxBackend) fileHelperPath() string {
 	if b.FileHelperPath != "" {
 		return b.FileHelperPath
@@ -284,4 +293,8 @@ func currentUIDGID(info os.FileInfo) (uint32, uint32, bool) {
 		return 0, 0, false
 	}
 	return stat.Uid, stat.Gid, true
+}
+
+func packageInstalled(ctx context.Context, packageName string) bool {
+	return exec.CommandContext(ctx, "dpkg", "-s", packageName).Run() == nil
 }

@@ -64,7 +64,7 @@ The packaged unit runs `scmctld-agent` as the dedicated `scmctld-agent` service 
 
 ## Deploy the PHP app
 
-This repo includes `/Users/alexisjcarr/learning/scm/examples/manifests/php-app-two-hosts.yaml`, which assumes Ubuntu 24.04-style package and service names:
+This repo includes `examples/manifests/php-app-two-hosts.yaml`, which assumes Ubuntu 24.04-style package and service names:
 
 - `nginx`
 - `php8.3-fpm`
