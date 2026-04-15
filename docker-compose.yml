@@ -1,0 +1,12 @@
+services:
+  scmctld:
+    build:
+      context: .
+      dockerfile: packaging/docker/scmctld.Dockerfile
+    command: ["/usr/local/bin/scmctld", "-config", "/etc/scm/scmctld.yaml"]
+    ports:
+      - "8443:8443"
+      - "8080:8080"
+    volumes:
+      - ./configs/dev/scmctld-compose.yaml:/etc/scm/scmctld.yaml:ro
+      - ./var/compose/scmctld:/var/lib/scm

@@ -3,8 +3,8 @@
 ## Components
 
 - `scmctl` loads a local YAML manifest, validates it locally, submits the compiled manifest to `scmctld`, and can stream apply events.
-- `scmctld` stores agents, applies, work items, and event history in SQLite. It exposes gRPC for agents and the CLI, plus a small read-only HTTP UI.
-- `scmctld-agent` registers itself, heartbeats periodically, fetches work only when idle, persists manifests locally, and reconciles package, file, and service resources.
+- `scmctld` stores agents, applies, work items, and event history in SQLite. It exposes gRPC for agents and the CLI, plus a small read-only HTTP UI. In the intended deployment model it runs separately from managed hosts rather than SSH-ing or passwording into them.
+- `scmctld-agent` registers itself, heartbeats periodically, fetches work only when idle, persists manifests locally, and reconciles package, file, and service resources. It is intended to run 1:1 under `systemd` on each managed host.
 
 ## Domain boundaries
 
