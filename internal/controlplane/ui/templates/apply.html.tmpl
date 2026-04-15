@@ -1,0 +1,121 @@
+{{define "apply"}}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>scm apply</title>
+  <style>
+    :root {
+      --bg: #f4f1ea;
+      --panel: #fffdf9;
+      --ink: #1f2521;
+      --muted: #66736d;
+      --border: #d8d0c4;
+      --accent: #185b52;
+      --accent-soft: #dbece8;
+      --warn: #8f5c00;
+      --danger: #8b2f2f;
+    }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top, #ffffff, var(--bg) 65%);
+      color: var(--ink);
+      font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+    }
+    header, main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    h1, h2 {
+      margin: 0 0 12px;
+      font-family: "Avenir Next Condensed", "Gill Sans", sans-serif;
+      letter-spacing: 0.03em;
+    }
+    .grid {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 12px 32px rgba(63, 51, 35, 0.06);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+    }
+    th, td {
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      padding: 10px 8px;
+      vertical-align: top;
+    }
+    .status {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-family: "Avenir Next", sans-serif;
+      font-size: 0.85rem;
+    }
+    .meta {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    pre {
+      overflow: auto;
+      background: #f8f5ef;
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+<header>
+  <p class="meta"><a href="/">Back</a></p>
+  <h1>{{.Apply.Name}}</h1>
+  <p class="meta">Apply {{.Apply.ApplyID}} · {{.Apply.Status}} · submitted by {{.Apply.SubmittedBy}}</p>
+</header>
+<main class="grid">
+  <section class="panel">
+    <h2>Targets</h2>
+    <table>
+      <thead>
+        <tr><th>Host</th><th>Status</th><th>Summary</th><th>Updated</th></tr>
+      </thead>
+      <tbody>
+        {{range .Targets}}
+        <tr>
+          <td>{{.HostID}}</td>
+          <td><span class="status {{.State}}">{{.State}}</span></td>
+          <td>{{.Summary}}</td>
+          <td>{{.UpdatedAt.Format "15:04:05"}}</td>
+        </tr>
+        {{else}}
+        <tr><td colspan="4">No per-host work items.</td></tr>
+        {{end}}
+      </tbody>
+    </table>
+  </section>
+  <section class="panel">
+    <h2>Event Stream</h2>
+    <pre>{{range .Events}}{{.CreatedAt.Format "15:04:05"}} {{.HostID}} {{.Phase}} {{.Message}}
+{{else}}No events yet.
+{{end}}</pre>
+  </section>
+</main>
+</body>
+</html>
+{{end}}

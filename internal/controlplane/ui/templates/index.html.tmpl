@@ -1,0 +1,136 @@
+{{define "index"}}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>scm control plane</title>
+  <style>
+    :root {
+      --bg: #f4f1ea;
+      --panel: #fffdf9;
+      --ink: #1f2521;
+      --muted: #66736d;
+      --border: #d8d0c4;
+      --accent: #185b52;
+      --accent-soft: #dbece8;
+      --warn: #8f5c00;
+      --danger: #8b2f2f;
+    }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top, #ffffff, var(--bg) 65%);
+      color: var(--ink);
+      font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+    }
+    header, main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    h1, h2, h3 {
+      margin: 0 0 12px;
+      font-family: "Avenir Next Condensed", "Gill Sans", sans-serif;
+      letter-spacing: 0.03em;
+    }
+    .grid {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 12px 32px rgba(63, 51, 35, 0.06);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+    }
+    th, td {
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      padding: 10px 8px;
+      vertical-align: top;
+    }
+    .status {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-family: "Avenir Next", sans-serif;
+      font-size: 0.85rem;
+    }
+    .status.failed {
+      background: #f4dada;
+      color: var(--danger);
+    }
+    .status.pending {
+      background: #f4e8c7;
+      color: var(--warn);
+    }
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .meta {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+<header>
+  <p class="meta">scmctld</p>
+  <h1>Control Plane Overview</h1>
+  <p class="meta">Updated {{.Now.Format "2006-01-02 15:04:05 MST"}}</p>
+</header>
+<main class="grid">
+  <section class="panel">
+    <h2>Agents</h2>
+    <table>
+      <thead>
+        <tr><th>Host</th><th>Status</th><th>Labels</th><th>Last seen</th></tr>
+      </thead>
+      <tbody>
+        {{range .Agents}}
+        <tr>
+          <td>{{.HostID}}</td>
+          <td><span class="status {{if .Idle}}completed{{else}}pending{{end}}">{{if .Idle}}idle{{else}}busy{{end}}</span></td>
+          <td>{{range $k, $v := .Labels}}{{$k}}={{$v}} {{end}}</td>
+          <td>{{.LastSeenAt.Format "15:04:05"}}</td>
+        </tr>
+        {{else}}
+        <tr><td colspan="4">No agents registered yet.</td></tr>
+        {{end}}
+      </tbody>
+    </table>
+  </section>
+  <section class="panel">
+    <h2>Applies</h2>
+    <table>
+      <thead>
+        <tr><th>Name</th><th>Status</th><th>Submitted by</th><th>Created</th></tr>
+      </thead>
+      <tbody>
+        {{range .Applies}}
+        <tr>
+          <td><a href="/applies/{{.ApplyID}}">{{.Name}}</a></td>
+          <td><span class="status {{.Status}}">{{.Status}}</span></td>
+          <td>{{.SubmittedBy}}</td>
+          <td>{{.CreatedAt.Format "15:04:05"}}</td>
+        </tr>
+        {{else}}
+        <tr><td colspan="4">No applies submitted yet.</td></tr>
+        {{end}}
+      </tbody>
+    </table>
+  </section>
+</main>
+</body>
+</html>
+{{end}}

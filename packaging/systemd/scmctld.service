@@ -1,0 +1,12 @@
+[Unit]
+Description=scm control plane daemon
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/scmctld -config /etc/scm/scmctld.yaml
+Restart=on-failure
+WorkingDirectory=/var/lib/scm
+
+[Install]
+WantedBy=multi-user.target

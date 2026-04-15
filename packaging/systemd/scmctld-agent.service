@@ -1,0 +1,12 @@
+[Unit]
+Description=scm host agent daemon
+After=network.target scmctld.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/scmctld-agent -config /etc/scm/scmctld-agent.yaml
+Restart=on-failure
+WorkingDirectory=/var/lib/scm/scmctld-agent
+
+[Install]
+WantedBy=multi-user.target

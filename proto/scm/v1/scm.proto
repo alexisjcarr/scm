@@ -1,0 +1,172 @@
+syntax = "proto3";
+
+package scm.v1;
+
+option go_package = "github.com/alexisjcarr/scm/pkg/api/scm/v1;scmv1";
+
+message HostSelector {
+  map<string, string> match_labels = 1;
+}
+
+message TargetSpec {
+  repeated string hosts = 1;
+  HostSelector selector = 2;
+}
+
+message ManifestResource {
+  string id = 1;
+  string type = 2;
+  string name = 3;
+  string path = 4;
+  string content = 5;
+  string mode = 6;
+  string owner = 7;
+  string group = 8;
+  string state = 9;
+  bool enabled = 10;
+  repeated string requires = 11;
+  repeated string notifies = 12;
+}
+
+message Manifest {
+  string api_version = 1;
+  string kind = 2;
+  string name = 3;
+  map<string, string> labels = 4;
+  TargetSpec target = 5;
+  repeated ManifestResource resources = 6;
+}
+
+message ApplyEvent {
+  string id = 1;
+  string apply_id = 2;
+  string host_id = 3;
+  string work_item_id = 4;
+  string level = 5;
+  string phase = 6;
+  string message = 7;
+  string created_at = 8;
+}
+
+message SubmitApplyRequest {
+  Manifest manifest = 1;
+  string raw_manifest = 2;
+  string submitted_by = 3;
+}
+
+message SubmitApplyResponse {
+  string apply_id = 1;
+  string status = 2;
+  int32 target_count = 3;
+}
+
+message GetApplyRequest {
+  string apply_id = 1;
+}
+
+message ApplyTargetSummary {
+  string host_id = 1;
+  string work_item_id = 2;
+  string status = 3;
+  string summary = 4;
+  string updated_at = 5;
+}
+
+message ApplySummary {
+  string apply_id = 1;
+  string name = 2;
+  string status = 3;
+  string submitted_by = 4;
+  string created_at = 5;
+  repeated ApplyTargetSummary targets = 6;
+}
+
+message StreamApplyEventsRequest {
+  string apply_id = 1;
+  int64 from_offset = 2;
+}
+
+message RegisterAgentRequest {
+  string agent_id = 1;
+  string host_id = 2;
+  string version = 3;
+  map<string, string> labels = 4;
+  repeated string capabilities = 5;
+}
+
+message RegisterAgentResponse {
+  string agent_id = 1;
+}
+
+message HeartbeatRequest {
+  string agent_id = 1;
+  bool idle = 2;
+  string current_work_item_id = 3;
+}
+
+message HeartbeatResponse {
+  string status = 1;
+}
+
+message FetchWorkRequest {
+  string agent_id = 1;
+}
+
+message WorkItem {
+  string work_item_id = 1;
+  string apply_id = 2;
+  string host_id = 3;
+  string lease_token = 4;
+  string state = 5;
+  string manifest_json = 6;
+  string assigned_at = 7;
+  string lease_expires_at = 8;
+}
+
+message FetchWorkResponse {
+  bool has_work = 1;
+  WorkItem work_item = 2;
+}
+
+message ReportWorkStatusRequest {
+  string agent_id = 1;
+  string work_item_id = 2;
+  string lease_token = 3;
+  string state = 4;
+  string summary = 5;
+  repeated ApplyEvent events = 6;
+}
+
+message ReportWorkStatusResponse {
+  string status = 1;
+}
+
+message AgentSummary {
+  string agent_id = 1;
+  string host_id = 2;
+  bool idle = 3;
+  string current_work_item_id = 4;
+  string version = 5;
+  map<string, string> labels = 6;
+  string last_seen_at = 7;
+}
+
+message ListAgentsRequest {}
+
+message ListAgentsResponse {
+  repeated AgentSummary agents = 1;
+}
+
+service ApplyService {
+  rpc SubmitApply(SubmitApplyRequest) returns (SubmitApplyResponse);
+  rpc GetApply(GetApplyRequest) returns (ApplySummary);
+  rpc StreamApplyEvents(StreamApplyEventsRequest) returns (stream ApplyEvent);
+}
+
+service AgentService {
+  rpc RegisterAgent(RegisterAgentRequest) returns (RegisterAgentResponse);
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+  rpc FetchWork(FetchWorkRequest) returns (FetchWorkResponse);
+  rpc ReportWorkStatus(ReportWorkStatusRequest) returns (ReportWorkStatusResponse);
+  rpc ListAgents(ListAgentsRequest) returns (ListAgentsResponse);
+}
