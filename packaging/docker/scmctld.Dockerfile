@@ -5,7 +5,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o /out/scmctld ./cmd/scmctld
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /out/scmctld ./cmd/scmctld
 
 FROM debian:bookworm-slim
 RUN groupadd --system scmctld && useradd --system --gid scmctld --home /var/lib/scm --shell /usr/sbin/nologin scmctld
