@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  echo "usage: scm-agent-fileop <write|delete> --path PATH [--mode MODE] [--owner OWNER] [--group GROUP]" >&2
+  exit 2
+}
+
+normalize_mode() {
+  local raw="${1:-0644}"
+  raw="${raw#0}"
+  if [[ -z "${raw}" ]]; then
+    raw="0"
+  fi
+  printf '%s' "${raw}"
+}
+
+action="${1:-}"
+if [[ -z "${action}" ]]; then
+  usage
+fi
+shift
+
+path=""
+mode=""
+owner=""
+group=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --path)
+      path="${2:-}"
+      shift 2
+      ;;
+    --mode)
+      mode="${2:-}"
+      shift 2
+      ;;
+    --owner)
+      owner="${2:-}"
+      shift 2
+      ;;
+    --group)
+      group="${2:-}"
+      shift 2
+      ;;
+    *)
+      usage
+      ;;
+  esac
+done
+
+if [[ -z "${path}" ]]; then
+  usage
+fi
+
+case "${action}" in
+  write)
+    tmp_file="$(mktemp)"
+    trap 'rm -f "${tmp_file}"' EXIT
+    cat >"${tmp_file}"
+
+    changed="unchanged"
+    install -d "$(dirname "${path}")"
+    if [[ ! -f "${path}" ]] || ! cmp -s "${tmp_file}" "${path}"; then
+      install -m "${mode:-0644}" "${tmp_file}" "${path}"
+      changed="changed"
+    fi
+
+    if [[ -n "${mode}" ]]; then
+      current_mode="$(stat -c '%a' "${path}")"
+      desired_mode="$(normalize_mode "${mode}")"
+      if [[ "${current_mode}" != "${desired_mode}" ]]; then
+        chmod "${mode}" "${path}"
+        changed="changed"
+      fi
+    fi
+
+    if [[ -n "${owner}" || -n "${group}" ]]; then
+      target_owner="${owner:-root}"
+      target_group="${group:-${target_owner}}"
+      current_ownership="$(stat -c '%U:%G' "${path}")"
+      desired_ownership="${target_owner}:${target_group}"
+      if [[ "${current_ownership}" != "${desired_ownership}" ]]; then
+        chown "${desired_ownership}" "${path}"
+        changed="changed"
+      fi
+    fi
+
+    printf '%s\n' "${changed}"
+    ;;
+  delete)
+    if [[ -e "${path}" || -L "${path}" ]]; then
+      rm -f "${path}"
+      printf 'changed\n'
+    else
+      printf 'unchanged\n'
+    fi
+    ;;
+  *)
+    usage
+    ;;
+esac

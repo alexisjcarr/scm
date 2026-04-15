@@ -1,9 +1,12 @@
 [Unit]
 Description=scm control plane daemon
-After=network.target
+Wants=network-online.target
+After=network-online.target
 
 [Service]
 Type=simple
+User=scmctld
+Group=scmctld
 ExecStart=/usr/local/bin/scmctld -config /etc/scm/scmctld.yaml
 Restart=on-failure
 WorkingDirectory=/var/lib/scm

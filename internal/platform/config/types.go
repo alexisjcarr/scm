@@ -104,7 +104,7 @@ func (c ControlPlaneConfig) Validate() error {
 // AgentConfig configures scmctld-agent.
 type AgentConfig struct {
 	ControlPlaneAddress  string            `yaml:"control_plane_address"`
-	StateDatabasePath    string            `yaml:"state_database_path"`
+	StateDir             string            `yaml:"state_dir"`
 	ManifestCacheDir     string            `yaml:"manifest_cache_dir"`
 	MetricsListenAddress string            `yaml:"metrics_listen_address"`
 	HostID               string            `yaml:"host_id"`
@@ -118,7 +118,7 @@ type AgentConfig struct {
 func DefaultAgentConfig() AgentConfig {
 	return AgentConfig{
 		ControlPlaneAddress:  "127.0.0.1:8443",
-		StateDatabasePath:    "/var/lib/scm/scmctld-agent/state.db",
+		StateDir:             "/var/lib/scm/scmctld-agent/state",
 		ManifestCacheDir:     "/var/lib/scm/scmctld-agent/manifests",
 		MetricsListenAddress: ":9108",
 		HostID:               "localhost",
@@ -149,8 +149,8 @@ func (c AgentConfig) Validate() error {
 	if c.ControlPlaneAddress == "" {
 		return fmt.Errorf("control_plane_address is required")
 	}
-	if c.StateDatabasePath == "" {
-		return fmt.Errorf("state_database_path is required")
+	if c.StateDir == "" {
+		return fmt.Errorf("state_dir is required")
 	}
 	if c.ManifestCacheDir == "" {
 		return fmt.Errorf("manifest_cache_dir is required")

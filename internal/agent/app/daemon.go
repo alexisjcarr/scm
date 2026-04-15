@@ -19,8 +19,8 @@ import (
 
 // RunDaemon assembles and runs scmctld-agent until the context is cancelled.
 func RunDaemon(ctx context.Context, cfg config.AgentConfig) error {
-	if err := config.EnsureParentDir(cfg.StateDatabasePath); err != nil {
-		return fmt.Errorf("prepare state database path: %w", err)
+	if err := config.EnsureDir(cfg.StateDir); err != nil {
+		return fmt.Errorf("prepare agent state dir: %w", err)
 	}
 
 	logger := logging.New(logging.Options{Level: cfg.LogLevel, JSON: cfg.LogJSON})
@@ -32,11 +32,10 @@ func RunDaemon(ctx context.Context, cfg config.AgentConfig) error {
 	}
 	defer conn.Close()
 
-	repo, err := agentinfra.NewSQLiteRepository(cfg.StateDatabasePath)
+	repo, err := agentinfra.NewCheckpointStore(cfg.StateDir)
 	if err != nil {
-		return fmt.Errorf("open local repository: %w", err)
+		return fmt.Errorf("open local checkpoint store: %w", err)
 	}
-	defer repo.Close()
 
 	reg := platformmetrics.NewRegistry()
 	agentMetrics := platformmetrics.NewAgentMetrics(reg)
