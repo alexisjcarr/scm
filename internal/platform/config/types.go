@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"time"
 )
@@ -30,11 +31,22 @@ func LoadCLIConfig(path string) (CLIConfig, error) {
 	}
 	if err := Load(resolved, &cfg); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return cfg, nil
+			return cfg, cfg.Validate()
 		}
 		return CLIConfig{}, err
 	}
-	return cfg, nil
+	return cfg, cfg.Validate()
+}
+
+// Validate checks the CLI config for required fields.
+func (c CLIConfig) Validate() error {
+	if c.ServerAddress == "" {
+		return fmt.Errorf("server_address is required")
+	}
+	if c.Timeout <= 0 {
+		return fmt.Errorf("timeout must be greater than zero")
+	}
+	return nil
 }
 
 // ControlPlaneConfig configures scmctld.
@@ -65,11 +77,28 @@ func LoadControlPlaneConfig(path string) (ControlPlaneConfig, error) {
 	}
 	if err := Load(path, &cfg); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return cfg, nil
+			return cfg, cfg.Validate()
 		}
 		return ControlPlaneConfig{}, err
 	}
-	return cfg, nil
+	return cfg, cfg.Validate()
+}
+
+// Validate checks the control plane config for required fields.
+func (c ControlPlaneConfig) Validate() error {
+	if c.GRPCListenAddress == "" {
+		return fmt.Errorf("grpc_listen_address is required")
+	}
+	if c.HTTPListenAddress == "" {
+		return fmt.Errorf("http_listen_address is required")
+	}
+	if c.DatabasePath == "" {
+		return fmt.Errorf("database_path is required")
+	}
+	if c.LeaseDuration <= 0 {
+		return fmt.Errorf("lease_duration must be greater than zero")
+	}
+	return nil
 }
 
 // AgentConfig configures scmctld-agent.
@@ -108,9 +137,35 @@ func LoadAgentConfig(path string) (AgentConfig, error) {
 	}
 	if err := Load(path, &cfg); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return cfg, nil
+			return cfg, cfg.Validate()
 		}
 		return AgentConfig{}, err
 	}
-	return cfg, nil
+	return cfg, cfg.Validate()
+}
+
+// Validate checks the agent config for required fields.
+func (c AgentConfig) Validate() error {
+	if c.ControlPlaneAddress == "" {
+		return fmt.Errorf("control_plane_address is required")
+	}
+	if c.StateDatabasePath == "" {
+		return fmt.Errorf("state_database_path is required")
+	}
+	if c.ManifestCacheDir == "" {
+		return fmt.Errorf("manifest_cache_dir is required")
+	}
+	if c.MetricsListenAddress == "" {
+		return fmt.Errorf("metrics_listen_address is required")
+	}
+	if c.HostID == "" {
+		return fmt.Errorf("host_id is required")
+	}
+	if c.AgentID == "" {
+		return fmt.Errorf("agent_id is required")
+	}
+	if c.PollInterval <= 0 {
+		return fmt.Errorf("poll_interval must be greater than zero")
+	}
+	return nil
 }

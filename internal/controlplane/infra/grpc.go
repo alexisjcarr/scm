@@ -7,6 +7,7 @@ import (
 
 	cpapp "github.com/alexisjcarr/scm/internal/controlplane/app"
 	cpdomain "github.com/alexisjcarr/scm/internal/controlplane/domain"
+	"github.com/alexisjcarr/scm/internal/controlplane/inventory"
 	manifestdomain "github.com/alexisjcarr/scm/internal/manifest/domain"
 	scmv1 "github.com/alexisjcarr/scm/pkg/api/scm/v1"
 )
@@ -90,7 +91,13 @@ func (s *GRPCServer) StreamApplyEvents(req *scmv1.StreamApplyEventsRequest, stre
 }
 
 func (s *GRPCServer) RegisterAgent(ctx context.Context, req *scmv1.RegisterAgentRequest) (*scmv1.RegisterAgentResponse, error) {
-	agent, err := s.service.RegisterAgent(ctx, *req)
+	agent, err := s.service.RegisterAgent(ctx, inventory.RegisterInput{
+		AgentID:      req.AgentID,
+		HostID:       req.HostID,
+		Version:      req.Version,
+		Labels:       cloneMap(req.Labels),
+		Capabilities: append([]string(nil), req.Capabilities...),
+	})
 	if err != nil {
 		return nil, err
 	}

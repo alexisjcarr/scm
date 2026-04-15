@@ -11,6 +11,7 @@ The repository is structured so an reader can explore a real codebase rather
 than a toy script:
 
 - domain boundaries for manifest parsing, control plane orchestration, and agent reconciliation
+- explicit control-plane subdomains for inventory, applies, and work queue behavior
 - gRPC transport between components
 - SQLite-backed state with replaceable repository interfaces
 - Prometheus metrics from both daemons

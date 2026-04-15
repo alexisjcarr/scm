@@ -1,1 +1,0 @@
-{"api_version":"scm/v1","kind":"Manifest","name":"local-file-demo","target":{"hosts":["demo-host-1"],"selector":{}},"resources":[{"id":"demo_file","type":"file","path":"/tmp/scm-demo-file.txt","content":"hello from scm\n","mode":"0644","state":"present"}]}

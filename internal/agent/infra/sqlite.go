@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	agentapp "github.com/alexisjcarr/scm/internal/agent/app"
 	agentdomain "github.com/alexisjcarr/scm/internal/agent/domain"
+	agentruntime "github.com/alexisjcarr/scm/internal/agent/runtime"
 	_ "modernc.org/sqlite"
 )
 
@@ -16,7 +16,7 @@ type SQLiteRepository struct {
 	db *sql.DB
 }
 
-var _ agentapp.Repository = (*SQLiteRepository)(nil)
+var _ agentruntime.Repository = (*SQLiteRepository)(nil)
 
 func NewSQLiteRepository(dsn string) (*SQLiteRepository, error) {
 	db, err := sql.Open("sqlite", dsn)
