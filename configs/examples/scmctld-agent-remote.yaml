@@ -1,0 +1,12 @@
+control_plane_address: "demo-tunnel.example.com:8443"
+state_database_path: "/var/lib/scm/scmctld-agent/state.db"
+manifest_cache_dir: "/var/lib/scm/scmctld-agent/manifests"
+metrics_listen_address: ":9108"
+host_id: "web-1"
+agent_id: "web-1-agent"
+labels:
+  role: "web"
+  env: "demo"
+log_level: "info"
+log_json: false
+poll_interval: 5s
