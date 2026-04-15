@@ -68,4 +68,21 @@ func TestRunOnceDelegatesToRuntimeRunner(t *testing.T) {
 	if got := len(client.heartbeats); got < 2 {
 		t.Fatalf("expected heartbeats before and after work, got %d", got)
 	}
+
+	snapshot := service.StatusSnapshot()
+	if !snapshot.ConnectedToControlPlane {
+		t.Fatalf("expected service to remain connected after successful run")
+	}
+	if snapshot.State != "ready" {
+		t.Fatalf("expected service to return to ready state, got %q", snapshot.State)
+	}
+	if snapshot.CurrentWorkItemID != "" {
+		t.Fatalf("expected no current work item after completion, got %q", snapshot.CurrentWorkItemID)
+	}
+	if snapshot.LastSuccessfulHeartbeatAt == "" {
+		t.Fatalf("expected a heartbeat timestamp in snapshot")
+	}
+	if snapshot.LastWorkReportAt == "" {
+		t.Fatalf("expected a work report timestamp in snapshot")
+	}
 }

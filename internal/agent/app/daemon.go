@@ -41,7 +41,7 @@ func RunDaemon(ctx context.Context, cfg config.AgentConfig) error {
 	reg := platformmetrics.NewRegistry()
 	agentMetrics := platformmetrics.NewAgentMetrics(reg)
 	client := scmv1.NewAgentServiceClient(conn)
-	runner := agentruntime.NewRunner(repo, agentinfra.LinuxBackend{}, agentMetrics)
+	runner := agentruntime.NewRunner(repo, agentinfra.NewLinuxBackend(), agentMetrics)
 	service := NewService(client, runner, logger, agentMetrics, cfg.AgentID, cfg.HostID, version.Version, cfg.Labels, []string{"packages", "files", "services"}, cfg.ManifestCacheDir)
 	if err := service.Register(context.Background()); err != nil {
 		return fmt.Errorf("register agent: %w", err)
@@ -49,12 +49,12 @@ func RunDaemon(ctx context.Context, cfg config.AgentConfig) error {
 
 	httpServer := &http.Server{
 		Addr:              cfg.MetricsListenAddress,
-		Handler:           platformmetrics.Handler(reg),
+		Handler:           NewDiagnosticsHandler(reg, service),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	serverErr := make(chan error, 1)
 	go func() {
-		logger.Info("serving metrics", "addr", cfg.MetricsListenAddress)
+		logger.Info("serving agent diagnostics", "addr", cfg.MetricsListenAddress)
 		err := httpServer.ListenAndServe()
 		if err == http.ErrServerClosed {
 			err = nil

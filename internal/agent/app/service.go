@@ -32,6 +32,7 @@ type Service struct {
 	runner           RuntimeRunner
 	logger           *slog.Logger
 	metrics          *platformmetrics.AgentMetrics
+	status           *statusTracker
 	agentID          string
 	hostID           string
 	version          string
@@ -49,6 +50,7 @@ func NewService(client ControlPlaneClient, runner RuntimeRunner, logger *slog.Lo
 		runner:           runner,
 		logger:           logger,
 		metrics:          metrics,
+		status:           newStatusTracker(agentID, hostID, version),
 		agentID:          agentID,
 		hostID:           hostID,
 		version:          version,
@@ -66,6 +68,11 @@ func (s *Service) Register(ctx context.Context) error {
 		Labels:       cloneMap(s.labels),
 		Capabilities: append([]string(nil), s.capabilities...),
 	})
+	if err != nil {
+		s.status.markConnectionFailure()
+		return err
+	}
+	s.status.markRegisterSuccess()
 	return err
 }
 
@@ -75,7 +82,17 @@ func (s *Service) Heartbeat(ctx context.Context, idle bool, currentWorkItemID st
 		Idle:              idle,
 		CurrentWorkItemID: currentWorkItemID,
 	})
+	if err != nil {
+		s.status.markConnectionFailure()
+		return err
+	}
+	s.status.markHeartbeatSuccess(time.Now().UTC(), idle, currentWorkItemID)
 	return err
+}
+
+// StatusSnapshot returns the current operator-facing agent status.
+func (s *Service) StatusSnapshot() StatusSnapshot {
+	return s.status.snapshot()
 }
 
 // RunOnce fetches work when idle and delegates execution to the runtime runner.
@@ -89,6 +106,7 @@ func (s *Service) RunOnce(ctx context.Context) error {
 
 	resp, err := s.client.FetchWork(ctx, &scmv1.FetchWorkRequest{AgentID: s.agentID})
 	if err != nil {
+		s.status.markConnectionFailure()
 		return err
 	}
 	if !resp.HasWork || resp.WorkItem == nil {
@@ -115,8 +133,10 @@ func (s *Service) RunOnce(ctx context.Context) error {
 		Summary:    "planning reconciliation",
 		Events:     events,
 	}); err != nil {
+		s.status.markConnectionFailure()
 		return err
 	}
+	s.status.markWorkReportSuccess(time.Now().UTC(), work.WorkItemID, "running")
 
 	summary, reportEvents, finalState, err := s.runner.Execute(ctx, work)
 	if err != nil {
@@ -142,8 +162,10 @@ func (s *Service) RunOnce(ctx context.Context) error {
 		Summary:    summary,
 		Events:     reportEvents,
 	}); reportErr != nil {
+		s.status.markConnectionFailure()
 		return reportErr
 	}
+	s.status.markWorkReportSuccess(time.Now().UTC(), work.WorkItemID, finalState)
 	if err := s.runner.Complete(ctx, work.WorkItemID, finalState, summary); err != nil {
 		return err
 	}
