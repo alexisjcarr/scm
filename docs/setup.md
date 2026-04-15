@@ -40,7 +40,7 @@ docker compose up --build scmctld
 
 2. Expose `8443/tcp` from your laptop through a stable tunnel or relay that the EC2 hosts can reach.
 
-3. Copy `/Users/alexisjcarr/learning/scm/configs/examples/scmctld-agent-remote.yaml` to each host as the starting point for `/etc/scm/scmctld-agent.yaml`, replacing `demo-tunnel.example.com:8443` with your reachable tunnel address.
+3. Copy `configs/examples/scmctld-agent-remote.yaml` to each host as the starting point for `/etc/scm/scmctld-agent.yaml`, replacing `demo-tunnel.example.com:8443` with your reachable tunnel address.
 
 4. Install and start `scmctld-agent` on each host under `systemd`.
 
@@ -48,4 +48,4 @@ docker compose up --build scmctld
 
 The tunnel is a demo reachability mechanism only. The product model is still an agent pull design where the control plane exposes gRPC and agents decide when to fetch work; it is not a password-based reach-into-hosts control path.
 
-For the full bootstrap and PHP app rollout path, see `/Users/alexisjcarr/learning/scm/docs/takehome.md`.
+For the full bootstrap and PHP app rollout path, see `docs/takehome.md`.

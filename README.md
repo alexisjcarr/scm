@@ -21,8 +21,8 @@ than a toy script:
 ## Quick start
 
 1. `make test`
-2. For a same-machine dev loop, start `scmctld` with the example config in `/Users/alexisjcarr/learning/scm/configs/examples/scmctld.yaml`
-3. Start `scmctld-agent` with `/Users/alexisjcarr/learning/scm/configs/examples/scmctld-agent.yaml`
+2. For a same-machine dev loop, start `scmctld` with the example config in `configs/examples/scmctld.yaml`
+3. Start `scmctld-agent` with `configs/examples/scmctld-agent.yaml`
 4. Run:
 
 ```bash
@@ -32,4 +32,4 @@ go run ./cmd/scmctl apply -f ./examples/manifests/nginx.yaml --watch
 
 For this project topology, run `scmctld` locally with Docker Compose and point remote remote agents at the exposed gRPC address or tunnel endpoint described in `docs/setup.md`.
 
-See `/Users/alexisjcarr/learning/scm/docs` for architecture, DSL, install, development, and project deployment details.
+See `docs/` for architecture, DSL, install, development, and project deployment details.
