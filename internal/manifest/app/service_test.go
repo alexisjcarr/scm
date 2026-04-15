@@ -1,8 +1,11 @@
 package app
 
 import (
+	"os"
 	"strings"
 	"testing"
+
+	manifestdomain "github.com/alexisjcarr/scm/internal/manifest/domain"
 )
 
 func TestParseAndValidateSuccess(t *testing.T) {
@@ -106,5 +109,41 @@ resources:
 	_, err := Service{}.ParseAndValidate(data)
 	if err == nil || !strings.Contains(err.Error(), "unknown resource") {
 		t.Fatalf("expected unknown resource error, got %v", err)
+	}
+}
+
+func TestParseAndValidatePHPAppManifestExample(t *testing.T) {
+	t.Parallel()
+
+	data, err := os.ReadFile("../../../examples/manifests/php-app-two-hosts.yaml")
+	if err != nil {
+		t.Fatalf("read php app manifest example: %v", err)
+	}
+
+	compiled, err := Service{}.ParseAndValidate(data)
+	if err != nil {
+		t.Fatalf("ParseAndValidate returned error: %v", err)
+	}
+	if compiled.Name != "php-app-two-hosts" {
+		t.Fatalf("expected manifest name php-app-two-hosts, got %q", compiled.Name)
+	}
+	if got := len(compiled.Target.Hosts); got != 2 {
+		t.Fatalf("expected two explicit hosts, got %d", got)
+	}
+	if got := len(compiled.OrderedResources); got != 6 {
+		t.Fatalf("expected 6 ordered resources, got %d", got)
+	}
+	foundHelloWorld := false
+	for _, resource := range compiled.Resources {
+		fileResource, ok := resource.(manifestdomain.FileResource)
+		if !ok || fileResource.ID != "app_index" {
+			continue
+		}
+		if strings.Contains(fileResource.Content, "Hello, world!") {
+			foundHelloWorld = true
+		}
+	}
+	if !foundHelloWorld {
+		t.Fatal("expected php app manifest example to serve Hello, world!")
 	}
 }

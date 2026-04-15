@@ -6,14 +6,20 @@ scm/
   etc/scm/
     scmctld.yaml.example
     scmctld-agent.yaml.example
+  install/
+    scm-agent-fileop
   lib/systemd/system/
     scmctld.service
     scmctld-agent.service
   share/scm/examples/manifests/
     nginx.yaml
+    php-app-two-hosts.yaml
   share/doc/scm/
     README.md
     install.md
     architecture.md
     dsl.md
+    demo.md
+  sudoers/
+    scmctld-agent
   install.sh
