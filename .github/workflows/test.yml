@@ -1,0 +1,40 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-and-format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Verify formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=$(find cmd internal pkg -name '*.go' | sort)
+          unformatted=$(gofmt -l ${files})
+          if [[ -n "${unformatted}" ]]; then
+            echo "These files need gofmt:"
+            echo "${unformatted}"
+            exit 1
+          fi
+
+      - name: Run test suite
+        run: go test ./...
