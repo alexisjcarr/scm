@@ -19,11 +19,13 @@ const (
 
 // Agent represents a registered host agent.
 type Agent struct {
-	AgentID           string
-	HostID            string
-	Version           string
-	Labels            map[string]string
-	Capabilities      []string
+	AgentID      string
+	HostID       string
+	Version      string
+	Labels       map[string]string
+	Capabilities []string
+	// Idle indicates the agent is connected and ready to fetch work. It does
+	// not mean the agent is offline or disconnected.
 	Idle              bool
 	CurrentWorkItemID string
 	LastSeenAt        time.Time

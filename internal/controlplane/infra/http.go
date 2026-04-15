@@ -36,11 +36,11 @@ func NewHTTPHandler(service *cpapp.Service) (http.Handler, error) {
 		}
 		data := struct {
 			Now     time.Time
-			Agents  []cpdomain.Agent
+			Agents  []ui.AgentRow
 			Applies []cpdomain.Apply
 		}{
 			Now:     time.Now().UTC(),
-			Agents:  agents,
+			Agents:  ui.AgentRows(agents),
 			Applies: applies,
 		}
 		if err := tmpl.ExecuteTemplate(w, "index", data); err != nil {

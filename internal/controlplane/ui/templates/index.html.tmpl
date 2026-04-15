@@ -73,6 +73,14 @@
       background: #f4e8c7;
       color: var(--warn);
     }
+    .status.working {
+      background: #f4e8c7;
+      color: var(--warn);
+    }
+    .status.ready {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
     a {
       color: var(--accent);
       text-decoration: none;
@@ -100,9 +108,9 @@
         {{range .Agents}}
         <tr>
           <td>{{.HostID}}</td>
-          <td><span class="status {{if .Idle}}completed{{else}}pending{{end}}">{{if .Idle}}idle{{else}}busy{{end}}</span></td>
+          <td><span class="status {{.StatusClass}}">{{.StatusLabel}}</span></td>
           <td>{{range $k, $v := .Labels}}{{$k}}={{$v}} {{end}}</td>
-          <td>{{.LastSeenAt.Format "15:04:05"}}</td>
+          <td>{{.LastSeenAtLabel}}</td>
         </tr>
         {{else}}
         <tr><td colspan="4">No agents registered yet.</td></tr>
