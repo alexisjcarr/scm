@@ -4,6 +4,8 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"strings"
+	"time"
 )
 
 // Options controls the shared structured logging setup.
@@ -22,7 +24,21 @@ func New(opts Options) *slog.Logger {
 	level := new(slog.LevelVar)
 	level.Set(parseLevel(opts.Level))
 
-	handlerOptions := &slog.HandlerOptions{Level: level}
+	handlerOptions := &slog.HandlerOptions{
+		Level: level,
+		ReplaceAttr: func(_ []string, attr slog.Attr) slog.Attr {
+			switch attr.Key {
+			case slog.TimeKey:
+				return slog.String("timestamp", attr.Value.Time().UTC().Format(time.RFC3339))
+			case slog.LevelKey:
+				return slog.String("level", strings.ToLower(attr.Value.Any().(slog.Level).String()))
+			case slog.MessageKey:
+				return slog.String("msg", attr.Value.String())
+			default:
+				return attr
+			}
+		},
+	}
 	if opts.JSON {
 		return slog.New(slog.NewJSONHandler(opts.Out, handlerOptions))
 	}
