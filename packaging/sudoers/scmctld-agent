@@ -1,0 +1,5 @@
+Cmnd_Alias SCM_AGENT_PACKAGES = /usr/bin/apt-get update, /usr/bin/apt-get install -y *, /usr/bin/apt-get remove -y *
+Cmnd_Alias SCM_AGENT_SERVICES = /usr/bin/systemctl enable *, /usr/bin/systemctl disable *, /usr/bin/systemctl start *, /usr/bin/systemctl stop *, /usr/bin/systemctl restart *
+Cmnd_Alias SCM_AGENT_FILES = /usr/local/libexec/scm-agent-fileop *
+
+scmctld-agent ALL=(root) NOPASSWD: SCM_AGENT_PACKAGES, SCM_AGENT_SERVICES, SCM_AGENT_FILES

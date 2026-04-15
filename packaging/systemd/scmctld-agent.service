@@ -1,9 +1,12 @@
 [Unit]
 Description=scm host agent daemon
-After=network.target scmctld.service
+Wants=network-online.target
+After=network-online.target
 
 [Service]
 Type=simple
+User=scmctld-agent
+Group=scmctld-agent
 ExecStart=/usr/local/bin/scmctld-agent -config /etc/scm/scmctld-agent.yaml
 Restart=on-failure
 WorkingDirectory=/var/lib/scm/scmctld-agent

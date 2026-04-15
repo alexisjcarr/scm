@@ -33,6 +33,14 @@ func EnsureParentDir(path string) error {
 	return os.MkdirAll(dir, 0o755)
 }
 
+// EnsureDir creates a directory-backed state path when needed.
+func EnsureDir(path string) error {
+	if path == "" || path == "." {
+		return nil
+	}
+	return os.MkdirAll(path, 0o755)
+}
+
 // ResolveUserPath expands a leading tilde for user config locations.
 func ResolveUserPath(path string) (string, error) {
 	if path == "" || path[0] != '~' {
