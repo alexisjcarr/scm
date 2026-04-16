@@ -10,3 +10,4 @@ labels:
 log_level: "info"
 log_json: false
 poll_interval: 5s
+run_timeout: 5m

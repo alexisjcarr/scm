@@ -12,4 +12,4 @@ cleanup() {
 trap cleanup EXIT
 
 sleep 2
-go run ./cmd/scmctl apply -f ./examples/manifests/nginx.yaml --server 127.0.0.1:8443 --watch
+go run ./cmd/scmctl apply -f ./examples/manifests/nginx.yaml --server 127.0.0.1:8443

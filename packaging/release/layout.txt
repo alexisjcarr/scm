@@ -8,18 +8,17 @@ scm/
     scmctld-agent.yaml.example
   install/
     scm-agent-fileop
+    scm-host-a-demo
   lib/systemd/system/
     scmctld.service
     scmctld-agent.service
   share/scm/examples/manifests/
     nginx.yaml
+    php-app-host-a.yaml
     php-app-two-hosts.yaml
   share/doc/scm/
     README.md
-    install.md
-    architecture.md
-    dsl.md
-    takehome.md
   sudoers/
     scmctld-agent
   install.sh
+  smoke.sh
