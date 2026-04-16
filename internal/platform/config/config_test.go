@@ -46,6 +46,18 @@ func TestEnsureParentDirCreatesDirectory(t *testing.T) {
 	}
 }
 
+func TestEnsureDirCreatesDirectory(t *testing.T) {
+	t.Parallel()
+
+	target := filepath.Join(t.TempDir(), "nested", "state")
+	if err := EnsureDir(target); err != nil {
+		t.Fatalf("EnsureDir returned error: %v", err)
+	}
+	if _, err := os.Stat(target); err != nil {
+		t.Fatalf("expected directory to exist: %v", err)
+	}
+}
+
 func TestResolveUserPathExpandsHomeRelativePaths(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)

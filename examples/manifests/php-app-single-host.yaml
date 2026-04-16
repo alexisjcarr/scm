@@ -1,14 +1,13 @@
 apiVersion: scm/v1
 kind: Manifest
 metadata:
-  name: php-app-two-hosts
+  name: php-app-single-host
   labels:
     team: sre
     service: php-demo
 target:
   hosts:
     - demo-host-1
-    - demo-host-2
 resources:
   - id: nginx_pkg
     type: package

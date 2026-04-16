@@ -28,6 +28,8 @@ install -d /usr/local/bin /usr/local/libexec /etc/scm /var/lib/scm /var/lib/scm/
 install -m 0755 "${ROOT_DIR}/bin/scmctl" /usr/local/bin/scmctl
 install -m 0755 "${ROOT_DIR}/bin/scmctld" /usr/local/bin/scmctld
 install -m 0755 "${ROOT_DIR}/bin/scmctld-agent" /usr/local/bin/scmctld-agent
+install -m 0755 "${ROOT_DIR}/install/scm-demo" /usr/local/bin/scm-demo
+install -m 0755 "${ROOT_DIR}/install/scm-host-a-demo" /usr/local/bin/scm-host-a-demo
 install -m 0755 "${ROOT_DIR}/install/scm-agent-fileop" /usr/local/libexec/scm-agent-fileop
 install -m 0640 "${ROOT_DIR}/etc/scm/scmctld.yaml.example" /etc/scm/scmctld.yaml
 install -m 0640 "${ROOT_DIR}/etc/scm/scmctld-agent.yaml.example" /etc/scm/scmctld-agent.yaml
@@ -36,6 +38,7 @@ install -m 0644 "${ROOT_DIR}/lib/systemd/system/scmctld-agent.service" /etc/syst
 install -d /etc/sudoers.d
 install -m 0440 "${ROOT_DIR}/sudoers/scmctld-agent" /etc/sudoers.d/scmctld-agent
 cp -R "${ROOT_DIR}/share/doc/scm/." /usr/local/share/doc/scm/
+cp -R "${ROOT_DIR}/share/scm/examples/manifests/." /usr/local/share/scm/examples/manifests/
 chown -R scmctld:scmctld /var/lib/scm
 chown -R scmctld-agent:scmctld-agent /var/lib/scm/scmctld-agent
 chown root:scmctld /etc/scm/scmctld.yaml
@@ -44,4 +47,4 @@ if command -v visudo >/dev/null 2>&1; then
   visudo -cf /etc/sudoers.d/scmctld-agent >/dev/null
 fi
 systemctl daemon-reload
-echo "installed scm binaries, configs, sudoers drop-in, and systemd units"
+echo "installed scm binaries, example manifests, sudoers drop-in, and systemd units"

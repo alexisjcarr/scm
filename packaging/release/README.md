@@ -6,5 +6,5 @@ The script produces Linux `amd64` and `arm64` tarballs containing:
 - example configs
 - systemd units
 - example manifests
-- the install script
+- the install and smoke scripts
 - operator-facing docs

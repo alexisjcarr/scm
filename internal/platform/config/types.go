@@ -113,6 +113,7 @@ type AgentConfig struct {
 	LogLevel             string            `yaml:"log_level"`
 	LogJSON              bool              `yaml:"log_json"`
 	PollInterval         time.Duration     `yaml:"poll_interval"`
+	RunTimeout           time.Duration     `yaml:"run_timeout"`
 }
 
 func DefaultAgentConfig() AgentConfig {
@@ -127,6 +128,7 @@ func DefaultAgentConfig() AgentConfig {
 		LogLevel:             "info",
 		LogJSON:              false,
 		PollInterval:         5 * time.Second,
+		RunTimeout:           5 * time.Minute,
 	}
 }
 
@@ -166,6 +168,9 @@ func (c AgentConfig) Validate() error {
 	}
 	if c.PollInterval <= 0 {
 		return fmt.Errorf("poll_interval must be greater than zero")
+	}
+	if c.RunTimeout <= 0 {
+		return fmt.Errorf("run_timeout must be greater than zero")
 	}
 	return nil
 }

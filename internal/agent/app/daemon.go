@@ -76,7 +76,10 @@ func RunDaemon(ctx context.Context, cfg config.AgentConfig) error {
 		case err := <-serverErr:
 			return err
 		case <-ticker.C:
-			runCtx, cancel := context.WithTimeout(ctx, cfg.PollInterval)
+			// Poll cadence and reconcile deadline are separate concerns:
+			// agents should fetch promptly without forcing package installs to
+			// finish within a single poll interval.
+			runCtx, cancel := context.WithTimeout(ctx, cfg.RunTimeout)
 			if err := service.RunOnce(runCtx); err != nil {
 				logger.Error("agent loop failed", "error", err)
 			}
