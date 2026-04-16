@@ -1,4 +1,4 @@
-# scm
+# Simple Config Manager (scm)
 
 `scm` is a small host configuration management MVP written in Go. It has three binaries:
 
@@ -20,12 +20,23 @@ The MVP supports:
 - agent-pull work distribution with lease-based claiming
 - a small control-plane UI for inventory, apply status, and event history
 
-For this project, I successfully demonstrated the full path on a single host:
+For this project, I was able to do the following on two separate Ubuntu hosts:
 
 1. `scmctl` submitted a manifest
 2. `scmctld` created and assigned work
 3. `scmctld-agent` reconciled the host
 4. the host served `Hello, world!` over HTTP
+
+## Reviewer Guide
+
+If you only want the fastest path to a working demo, use the packaged Ubuntu flow in [Installation](#installation) and then run `scm-demo`.
+
+If you want to inspect the code locally first:
+
+1. run the unit tests with `make test`
+2. start `scmctld` and `scmctld-agent` with the example configs
+3. submit one of the example manifests with `scmctl`
+4. use the control-plane UI at `http://127.0.0.1:8080` to inspect inventory and apply state
 
 ## Architecture
 
@@ -41,53 +52,22 @@ This is an agent-pull design. The control plane does not SSH into hosts or use s
 
 ### Intended topology
 
+![Architecture sequence diagram](README.assets/architecture-sequence.svg)
+
+PlantUML source: [README.assets/architecture-sequence.puml](README.assets/architecture-sequence.puml)
+
 The intended steady-state deployment model is:
 
 - `scmctld` deployed separately from managed hosts
+- durable system state shared by the control plane
 - `scmctld-agent` deployed 1:1 on managed hosts
 - all components living on the same trusted company network or VPC
 
-For the constrained demo, I co-located `scmctld` and `scmctld-agent` on a single host. That was a practical fallback because I only had host credentials, not control over the surrounding network policy.
+I intentionally designed this as a control plane plus pull-based agents rather than a per-host shell script. A simple script-per-box model can be fine for a toy environment, but it does not scale to a large fleet. I wanted the architecture to still make sense in an environment with thousands of hosts, with a central system of record, durable apply history, and per-host reconciliation.
 
-Host B should be able to call a single host's `scmctld` over `8443/tcp` in a normal environment. The observed a second host failure was environmental network policy, not a flaw in the control model.
+In the project environment, I only had host-level access. I did not have control over network security groups and I did not have a reliable view of the surrounding network topology. I confirmed that the control plane was healthy, bound on `*:8443`, and not blocked by host-local firewalls, while cross-host traffic still timed out over both public and private addresses. That pointed to network policy or routing outside the hosts themselves.
 
-### Diagram
-
-```plantuml
-@startuml
-actor "Operator\nscmctl" as Operator
-participant "scmctld\ncontrol plane" as ControlPlane
-database "SQLite\ncontrol-plane state" as ControlPlaneDB
-participant "scmctld-agent\na single host" as Agent
-collections "JSON checkpoints\ncurrent-work / last-result" as Checkpoints
-participant "Host runtime\npackages / files / services" as Host
-
-Operator -> ControlPlane: SubmitApply(manifest)
-ControlPlane -> ControlPlaneDB: persist apply + work items + events
-ControlPlane --> Operator: apply_id
-
-loop poll / heartbeat
-  Agent -> ControlPlane: Register / Heartbeat / FetchWork
-  ControlPlane -> ControlPlaneDB: claim one pending work item\nwith lease token
-  ControlPlane --> Agent: work item + manifest
-end
-
-Agent -> Checkpoints: write current-work.json
-Agent -> Host: reconcile ordered resources
-Host --> Agent: changed / already converged
-Agent -> Checkpoints: write last-result.json\nremove current-work.json
-Agent -> ControlPlane: ReportWorkStatus(events, terminal state)
-ControlPlane -> ControlPlaneDB: persist work status + event stream
-
-note over ControlPlane,Agent
-The intended operating model is a separately deployed control plane in
-the same trusted network or VPC as the managed fleet. Co-locating the
-control plane and agent on a single host was a deliberate fallback for the
-project environment, where host credentials were available but the
-surrounding network policy was not.
-end note
-@enduml
-```
+Because of that constraint, I validated the full control-plane-plus-agent path by deploying the full system independently on each host. That was a demo fallback, not the intended production architecture.
 
 ### Key implementation choices
 
@@ -95,6 +75,7 @@ end note
 - `internal/controlplane`: inventory, apply lifecycle, and work queue concerns
 - `internal/agent`: registration, polling, reconciliation, and host execution
 - `internal/platform`: shared config, logging, metrics, gRPC, clock, version helpers
+- `requires` edges are compiled into a DAG and executed in topologically sorted order so reconciliation order is explicit, deterministic, and explainable
 
 Work dispatch is lease-based:
 
@@ -112,10 +93,10 @@ Manifests are YAML and can target hosts explicitly or by selector.
 apiVersion: scm/v1
 kind: Manifest
 metadata:
-  name: php-app-host-a
+  name: php-app-single-host
 target:
   hosts:
-    - php-web-1
+    - demo-host-1
 resources:
   - id: nginx_pkg
     type: package
@@ -170,33 +151,79 @@ Validation guarantees:
 
 Canonical examples:
 
-- [examples/manifests/nginx.yaml](/Users/alexisjcarr/learning/scm/examples/manifests/nginx.yaml)
-- [examples/manifests/php-app-host-a.yaml](/Users/alexisjcarr/learning/scm/examples/manifests/php-app-host-a.yaml)
-- [examples/manifests/php-app-two-hosts.yaml](/Users/alexisjcarr/learning/scm/examples/manifests/php-app-two-hosts.yaml)
+- [examples/manifests/nginx.yaml](examples/manifests/nginx.yaml)
+- [examples/manifests/php-app-single-host.yaml](examples/manifests/php-app-single-host.yaml)
+- [examples/manifests/php-app-two-hosts.yaml](examples/manifests/php-app-two-hosts.yaml)
 
-## Quickest Demo Path
+## Installation
+
+### Local prerequisites
+
+For local development:
+
+- Go 1.23+
+- `make`
+- a Unix-like environment with standard shell tools
+
+For the packaged host demo:
+
+- Ubuntu
+- `systemd`
+- `sudo`
+- `apt` / `dpkg`
+
+I did not optimize the primary demo path around Docker because package installation, service management, sudo policy, and host-local reconciliation are central to the problem. For this project, native Ubuntu packaging is a better fit than containerizing away the interesting parts.
+
+## Run and Test
 
 ### Local dev loop
 
+Build and test:
+
 ```bash
+make build
 make test
+```
+
+Start the control plane and agent with example configs:
+
+```bash
 go run ./cmd/scmctld -config ./configs/examples/scmctld.yaml
 go run ./cmd/scmctld-agent -config ./configs/examples/scmctld-agent.yaml
+```
+
+Validate and submit a manifest:
+
+```bash
 go run ./cmd/scmctl validate -f ./examples/manifests/nginx.yaml
 go run ./cmd/scmctl apply -f ./examples/manifests/nginx.yaml --server 127.0.0.1:8443
 ```
 
-Use `http://127.0.0.1:8080` and the apply detail page as the source of truth during local testing.
+Use `http://127.0.0.1:8080`, the apply detail page, or `scmctl --watch` during local testing. The example configs are biased toward the packaged Ubuntu path under `/var/lib/scm/...`; for repo-local experimentation you can either override the paths or use the compose/dev config under `configs/dev`.
 
-### Take-home a single host fallback
+### Packaged Ubuntu demo
 
-The fastest successful evaluator path is the a single host fallback:
+Build a release bundle:
 
-- run `scmctld` and `scmctld-agent` on a single host
+```bash
+./scripts/release.sh dev
+```
+
+On Ubuntu:
+
+```bash
+tar -xzf scm_dev_linux_amd64.tar.gz
+cd scm
+sudo ./smoke.sh
+```
+
+The quickest successful evaluator path is the standalone packaged demo:
+
+- run `scmctld` and `scmctld-agent` on the same host
 - point the agent at `127.0.0.1:8443`
 - use the single-host PHP manifest
 
-Required a single host config values:
+Required config values:
 
 `/etc/scm/scmctld.yaml`
 
@@ -216,8 +243,8 @@ control_plane_address: "127.0.0.1:8443"
 state_dir: "/var/lib/scm/scmctld-agent/state"
 manifest_cache_dir: "/var/lib/scm/scmctld-agent/manifests"
 metrics_listen_address: ":9108"
-host_id: "php-web-1"
-agent_id: "php-web-1-agent"
+host_id: "demo-host-1"
+agent_id: "demo-host-1-agent"
 labels:
   role: "web"
   env: "demo"
@@ -231,7 +258,7 @@ The installed helper path is:
 
 ```bash
 sudo ./smoke.sh
-scm-host-a-demo
+scm-demo
 ```
 
 What those helpers do:
@@ -242,12 +269,13 @@ What those helpers do:
 - submit the single-host PHP manifest
 - print the apply detail URL and verification commands
 
-Trusted progress view:
+I used this same standalone deployment pattern on two separate hosts. Each host ran its own control plane and agent locally, and each successfully converged the PHP app to `Hello, world!`.
+
+Progress view options:
 
 - control plane apply detail page: `http://127.0.0.1:8080/applies/<apply_id>`
+- `scmctl --watch`
 - agent execution logs: `journalctl -u scmctld-agent -f -o cat`
-
-I do **not** recommend `scmctl --watch` as the primary demo view right now.
 
 ### Verification
 
@@ -270,21 +298,13 @@ Expected result:
 - `200 OK`
 - response body includes `Hello, world!`
 
-## Packaging / Install
+### CI and automated checks
 
-Build release artifacts:
+The repository includes:
 
-```bash
-./scripts/release.sh dev
-```
-
-On Ubuntu:
-
-```bash
-tar -xzf scm_dev_linux_amd64.tar.gz
-cd scm
-sudo ./smoke.sh
-```
+- `make test` -> `./scripts/test.sh`
+- GitHub Actions CI at [.github/workflows/test.yml](.github/workflows/test.yml)
+- GitHub Actions packaged artifacts at [.github/workflows/artifacts.yml](.github/workflows/artifacts.yml)
 
 The release bundle includes:
 
@@ -294,7 +314,7 @@ The release bundle includes:
 - example manifests
 - `install.sh`
 - `smoke.sh`
-- `scm-host-a-demo`
+- `scm-demo`
 
 Steady-state daemons run as dedicated service users:
 
@@ -302,6 +322,51 @@ Steady-state daemons run as dedicated service users:
 - `scmctld-agent`
 
 The agent uses a narrow sudoers policy for package, service, and privileged file operations instead of running the entire daemon as root.
+
+## Third-Party Tools and Libraries
+
+Primary third-party dependencies:
+
+- `google.golang.org/grpc`: gRPC transport between `scmctl`, `scmctld`, and `scmctld-agent`
+- `gopkg.in/yaml.v3`: manifest and config parsing
+- `github.com/prometheus/client_golang`: metrics instrumentation and Prometheus exposition
+- `modernc.org/sqlite`: embedded SQLite driver for the control-plane persistence layer
+
+System tools the agent intentionally relies on:
+
+- `apt-get` / `dpkg` for package reconciliation
+- `systemctl` for service reconciliation
+- `sudo` for narrowly scoped privileged operations
+- `journald` for host-local execution logs
+
+I did not use third-party hosted APIs. The system is self-contained aside from the OS package/service manager on Ubuntu hosts.
+
+## Major Design Choices
+
+### Agent-pull instead of SSH/push
+
+I chose an agent-pull model so the control plane can remain a scheduler and source of truth rather than a process that stores host credentials and reaches into machines over SSH. Each host runs its own agent, pulls work, and reconciles local state.
+
+### SQLite only in the control plane
+
+The control plane needs durable state for:
+
+- registered agents
+- applies
+- work items
+- event history
+
+SQLite was a good MVP tradeoff there: durable, simple, and sufficient for a small operational UI and recoverable work queue without adding more infrastructure during the project.
+
+The agent keeps only a bounded JSON checkpoint on disk for crash recovery. That keeps the host-side persistence model simple while leaving the control plane as the canonical audit/history store.
+
+### Native Ubuntu packaging instead of a Docker-first demo
+
+This project manages packages, files, and services on Linux hosts. Because `apt`, `systemd`, `sudo`, and journald are part of the actual behavior being demonstrated, I treated native Ubuntu packaging and systemd units as the primary install path rather than hiding that behavior behind a container.
+
+### Explicit dependency graph in the DSL
+
+The manifest DSL supports `requires` and `notifies` so the executor can model ordering and change-triggered follow-up behavior intentionally. `requires` becomes a DAG and is topologically sorted before reconciliation, which gives predictable and explainable execution order instead of relying on file order.
 
 ## Tradeoffs and Known Limitations
 
@@ -315,8 +380,7 @@ The agent uses a narrow sudoers policy for package, service, and privileged file
 
 ### Known limitations
 
-- `scmctl --watch` is currently noisy and can duplicate early event output; the apply-detail page is the source of truth
-- a second host demonstration was blocked by environment/network controls I did not have access to change
+- the intended shared-control-plane, multi-host topology was blocked by environment/network controls I did not have access to change
 - bootstrap and debugging still involve more manual root work than I would want long term
 - SQLite is appropriate for the control plane MVP but not the final production persistence story
 - the agent-local checkpoint model is intentionally minimal; with more time I would add explicit retention/cleanup and restart-resume semantics around it
@@ -325,6 +389,5 @@ The agent uses a narrow sudoers policy for package, service, and privileged file
 
 - separate poll cadence and run timeout is now fixed, but I would further harden the agent execution and progress-reporting path
 - improve installer and bootstrap ergonomics so the demo path requires less manual host editing
-- fix the `scmctl --watch` stream behavior
 - add a cleaner production deployment story for a separately hosted control plane in a shared VPC/network
 - broaden validation and end-to-end testing around real distro/package differences

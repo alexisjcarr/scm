@@ -16,7 +16,7 @@ build_arch() {
   local archive="${DIST_DIR}/scm_${VERSION}_${goos}_${goarch}.tar.gz"
 
   rm -rf "${out_dir}"
-  mkdir -p "${out_dir}/bin" "${out_dir}/etc/scm" "${out_dir}/install" "${out_dir}/lib/systemd/system" "${out_dir}/share/scm/examples/manifests" "${out_dir}/share/doc/scm" "${out_dir}/sudoers"
+  mkdir -p "${out_dir}/bin" "${out_dir}/etc/scm" "${out_dir}/install" "${out_dir}/lib/systemd/system" "${out_dir}/share/scm/examples/manifests" "${out_dir}/share/doc/scm/README.assets" "${out_dir}/sudoers"
 
   GOOS="${goos}" GOARCH="${goarch}" go build -o "${out_dir}/bin/scmctl" ./cmd/scmctl
   GOOS="${goos}" GOARCH="${goarch}" go build -o "${out_dir}/bin/scmctld" ./cmd/scmctld
@@ -30,6 +30,9 @@ build_arch() {
   cp "${ROOT_DIR}/examples/manifests/php-app-single-host.yaml" "${out_dir}/share/scm/examples/manifests/php-app-single-host.yaml"
   cp "${ROOT_DIR}/examples/manifests/php-app-two-hosts.yaml" "${out_dir}/share/scm/examples/manifests/php-app-two-hosts.yaml"
   cp "${ROOT_DIR}/README.md" "${out_dir}/share/doc/scm/README.md"
+  cp "${ROOT_DIR}/README.assets/architecture-sequence.png" "${out_dir}/share/doc/scm/README.assets/architecture-sequence.png"
+  cp "${ROOT_DIR}/README.assets/architecture-sequence.svg" "${out_dir}/share/doc/scm/README.assets/architecture-sequence.svg"
+  cp "${ROOT_DIR}/README.assets/architecture-sequence.puml" "${out_dir}/share/doc/scm/README.assets/architecture-sequence.puml"
   cp "${ROOT_DIR}/packaging/install/install.sh" "${out_dir}/install.sh"
   cp "${ROOT_DIR}/packaging/install/smoke.sh" "${out_dir}/smoke.sh"
   cp "${ROOT_DIR}/packaging/install/scm-agent-fileop" "${out_dir}/install/scm-agent-fileop"
