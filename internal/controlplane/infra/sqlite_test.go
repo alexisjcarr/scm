@@ -171,7 +171,7 @@ func TestReconcileStalledMarksPendingWorkWithoutHealthyAgent(t *testing.T) {
 		HostID:       "host-1",
 		State:        cpdomain.WorkStatePending,
 		ManifestJSON: "{}",
-		UpdatedAt:    now,
+		UpdatedAt:    staleSeen,
 	}}, nil)
 	if err != nil {
 		t.Fatalf("CreateApply returned error: %v", err)
@@ -197,5 +197,168 @@ func TestReconcileStalledMarksPendingWorkWithoutHealthyAgent(t *testing.T) {
 	}
 	if len(events) != 1 || events[0].Phase != "stalled" {
 		t.Fatalf("events = %+v, want trailing stalled event", events)
+	}
+}
+
+func TestReconcileStalledKeepsFreshPendingWorkPending(t *testing.T) {
+	t.Parallel()
+
+	repo, err := NewSQLiteRepository("file:reconcile-fresh-pending?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatalf("NewSQLiteRepository returned error: %v", err)
+	}
+	defer repo.Close()
+
+	now := time.Unix(1700000000, 0).UTC()
+	if err := repo.CreateApply(context.Background(), cpdomain.Apply{
+		ApplyID:      "apply-1",
+		Name:         "nginx",
+		Status:       cpdomain.ApplyStatusPending,
+		SubmittedBy:  "tester",
+		RawManifest:  "raw",
+		ManifestJSON: "{}",
+		CreatedAt:    now,
+	}, []cpdomain.WorkItem{{
+		WorkItemID:   "work-1",
+		ApplyID:      "apply-1",
+		HostID:       "host-1",
+		State:        cpdomain.WorkStatePending,
+		ManifestJSON: "{}",
+		UpdatedAt:    now,
+	}}, nil); err != nil {
+		t.Fatalf("CreateApply returned error: %v", err)
+	}
+
+	if err := repo.ReconcileStalled(context.Background(), now, 2*time.Minute); err != nil {
+		t.Fatalf("ReconcileStalled returned error: %v", err)
+	}
+
+	apply, workItems, err := repo.GetApply(context.Background(), "apply-1")
+	if err != nil {
+		t.Fatalf("GetApply returned error: %v", err)
+	}
+	if apply.Status != cpdomain.ApplyStatusPending {
+		t.Fatalf("apply.Status = %q, want %q", apply.Status, cpdomain.ApplyStatusPending)
+	}
+	if len(workItems) != 1 || workItems[0].State != cpdomain.WorkStatePending {
+		t.Fatalf("workItems = %+v, want one pending work item", workItems)
+	}
+}
+
+func TestClaimNextWorkReturnsNilForBusyAgent(t *testing.T) {
+	t.Parallel()
+
+	repo, err := NewSQLiteRepository("file:claim-busy-agent?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatalf("NewSQLiteRepository returned error: %v", err)
+	}
+	defer repo.Close()
+
+	now := time.Unix(1700000000, 0).UTC()
+	if err := repo.UpsertAgent(context.Background(), cpdomain.Agent{
+		AgentID:           "agent-1",
+		HostID:            "host-1",
+		Version:           "dev",
+		Idle:              false,
+		CurrentWorkItemID: "existing-work",
+		LastSeenAt:        now,
+	}); err != nil {
+		t.Fatalf("UpsertAgent returned error: %v", err)
+	}
+	if err := repo.CreateApply(context.Background(), cpdomain.Apply{
+		ApplyID:      "apply-1",
+		Name:         "nginx",
+		Status:       cpdomain.ApplyStatusPending,
+		SubmittedBy:  "tester",
+		RawManifest:  "raw",
+		ManifestJSON: "{}",
+		CreatedAt:    now,
+	}, []cpdomain.WorkItem{{
+		WorkItemID:   "work-1",
+		ApplyID:      "apply-1",
+		HostID:       "host-1",
+		State:        cpdomain.WorkStatePending,
+		ManifestJSON: "{}",
+		UpdatedAt:    now,
+	}}, nil); err != nil {
+		t.Fatalf("CreateApply returned error: %v", err)
+	}
+
+	got, err := repo.ClaimNextWork(context.Background(), "agent-1", time.Minute, now)
+	if err != nil {
+		t.Fatalf("ClaimNextWork returned error: %v", err)
+	}
+	if got != nil {
+		t.Fatalf("ClaimNextWork returned %+v, want nil for busy agent", got)
+	}
+}
+
+func TestUpdateWorkNormalizesEventMetadataFromStoredWorkItem(t *testing.T) {
+	t.Parallel()
+
+	repo, err := NewSQLiteRepository("file:update-work-normalizes-events?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatalf("NewSQLiteRepository returned error: %v", err)
+	}
+	defer repo.Close()
+
+	now := time.Unix(1700000000, 0).UTC()
+	if err := repo.UpsertAgent(context.Background(), cpdomain.Agent{
+		AgentID:    "agent-1",
+		HostID:     "host-1",
+		Version:    "dev",
+		Idle:       true,
+		LastSeenAt: now,
+	}); err != nil {
+		t.Fatalf("UpsertAgent returned error: %v", err)
+	}
+	if err := repo.CreateApply(context.Background(), cpdomain.Apply{
+		ApplyID:      "apply-1",
+		Name:         "nginx",
+		Status:       cpdomain.ApplyStatusPending,
+		SubmittedBy:  "tester",
+		RawManifest:  "raw",
+		ManifestJSON: "{}",
+		CreatedAt:    now,
+	}, []cpdomain.WorkItem{{
+		WorkItemID:   "work-1",
+		ApplyID:      "apply-1",
+		HostID:       "host-1",
+		State:        cpdomain.WorkStatePending,
+		ManifestJSON: "{}",
+		UpdatedAt:    now,
+	}}, nil); err != nil {
+		t.Fatalf("CreateApply returned error: %v", err)
+	}
+
+	work, err := repo.ClaimNextWork(context.Background(), "agent-1", time.Minute, now)
+	if err != nil {
+		t.Fatalf("ClaimNextWork returned error: %v", err)
+	}
+
+	err = repo.UpdateWork(context.Background(), "agent-1", work.WorkItemID, work.LeaseToken, cpdomain.WorkStateRunning, "running", []cpdomain.ApplyEvent{{
+		ID:         "evt-1",
+		ApplyID:    "wrong-apply",
+		HostID:     "wrong-host",
+		WorkItemID: "wrong-work",
+		Level:      "info",
+		Phase:      "running",
+		Message:    "hello",
+		CreatedAt:  now,
+	}}, now)
+	if err != nil {
+		t.Fatalf("UpdateWork returned error: %v", err)
+	}
+
+	events, err := repo.ListEvents(context.Background(), "apply-1", 0)
+	if err != nil {
+		t.Fatalf("ListEvents returned error: %v", err)
+	}
+	if len(events) == 0 {
+		t.Fatal("expected at least one event")
+	}
+	got := events[len(events)-1]
+	if got.ApplyID != "apply-1" || got.HostID != "host-1" || got.WorkItemID != "work-1" {
+		t.Fatalf("event metadata = %+v, want canonical stored work-item metadata", got)
 	}
 }

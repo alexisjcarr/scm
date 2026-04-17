@@ -42,10 +42,6 @@ func RunDaemon(ctx context.Context, cfg config.AgentConfig) error {
 	client := scmv1.NewAgentServiceClient(conn)
 	runner := agentruntime.NewRunner(repo, agentinfra.NewLinuxBackend(), agentMetrics)
 	service := NewService(client, runner, logger, agentMetrics, cfg.AgentID, cfg.HostID, version.Version, cfg.Labels, []string{"packages", "files", "services"}, cfg.ManifestCacheDir)
-	if err := service.Register(context.Background()); err != nil {
-		return fmt.Errorf("register agent: %w", err)
-	}
-
 	httpServer := &http.Server{
 		Addr:              cfg.MetricsListenAddress,
 		Handler:           NewDiagnosticsHandler(reg, service),
@@ -60,6 +56,10 @@ func RunDaemon(ctx context.Context, cfg config.AgentConfig) error {
 		}
 		serverErr <- err
 	}()
+
+	if err := service.Register(context.Background()); err != nil {
+		logger.Error("initial agent registration failed", "error", err)
+	}
 
 	ticker := time.NewTicker(cfg.PollInterval)
 	defer ticker.Stop()
@@ -76,6 +76,15 @@ func RunDaemon(ctx context.Context, cfg config.AgentConfig) error {
 		case err := <-serverErr:
 			return err
 		case <-ticker.C:
+			if !service.StatusSnapshot().ConnectedToControlPlane {
+				registerCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+				if err := service.Register(registerCtx); err != nil {
+					logger.Error("agent registration failed", "error", err)
+					cancel()
+					continue
+				}
+				cancel()
+			}
 			// Poll cadence and reconcile deadline are separate concerns:
 			// agents should fetch promptly without forcing package installs to
 			// finish within a single poll interval.

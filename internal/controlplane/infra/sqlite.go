@@ -344,16 +344,23 @@ func (r *SQLiteRepository) ClaimNextWork(ctx context.Context, agentID string, le
 	}
 	defer tx.Rollback()
 
-	var hostID string
+	var (
+		hostID            string
+		idle              bool
+		currentWorkItemID string
+	)
 	if err := tx.QueryRowContext(ctx, `
-		SELECT host_id
+		SELECT host_id, idle, current_work_item_id
 		FROM agents
 		WHERE agent_id = ?`, agentID,
-	).Scan(&hostID); err != nil {
+	).Scan(&hostID, &idle, &currentWorkItemID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("agent %q is not registered", agentID)
 		}
 		return nil, fmt.Errorf("load agent host for claim: %w", err)
+	}
+	if !idle || currentWorkItemID != "" {
+		return nil, nil
 	}
 
 	var workID string
@@ -446,14 +453,15 @@ func (r *SQLiteRepository) UpdateWork(ctx context.Context, agentID string, workI
 
 	var (
 		applyID         string
+		hostID          string
 		currentLease    string
 		assignedAgentID string
 	)
 	if err := tx.QueryRowContext(ctx, `
-		SELECT apply_id, lease_token, assigned_agent_id
+		SELECT apply_id, host_id, lease_token, assigned_agent_id
 		FROM work_items
 		WHERE work_item_id = ?`, workItemID,
-	).Scan(&applyID, &currentLease, &assignedAgentID); err != nil {
+	).Scan(&applyID, &hostID, &currentLease, &assignedAgentID); err != nil {
 		return fmt.Errorf("load work item lease: %w", err)
 	}
 
@@ -479,6 +487,12 @@ func (r *SQLiteRepository) UpdateWork(ctx context.Context, agentID string, workI
 		); err != nil {
 			return fmt.Errorf("mark agent idle: %w", err)
 		}
+	}
+
+	for i := range events {
+		events[i].ApplyID = applyID
+		events[i].HostID = hostID
+		events[i].WorkItemID = workItemID
 	}
 
 	if err := insertEvents(ctx, tx, events); err != nil {
@@ -589,7 +603,7 @@ func (r *SQLiteRepository) ReconcileStalled(ctx context.Context, now time.Time, 
 		summary := ""
 		switch item.state {
 		case cpdomain.WorkStatePending:
-			if !agentHealthy {
+			if item.updatedAt.Before(stallDeadline) && !agentHealthy {
 				shouldStall = true
 				summary = "no healthy agent heartbeat for target host"
 			}

@@ -40,6 +40,7 @@ type Service struct {
 	labels           map[string]string
 	capabilities     []string
 	manifestCacheDir string
+	progressInterval time.Duration
 }
 
 func NewService(client ControlPlaneClient, runner RuntimeRunner, logger *slog.Logger, metrics *platformmetrics.AgentMetrics, agentID, hostID, version string, labels map[string]string, capabilities []string, manifestCacheDir string) *Service {
@@ -58,6 +59,7 @@ func NewService(client ControlPlaneClient, runner RuntimeRunner, logger *slog.Lo
 		labels:           cloneMap(labels),
 		capabilities:     append([]string(nil), capabilities...),
 		manifestCacheDir: manifestCacheDir,
+		progressInterval: 30 * time.Second,
 	}
 }
 
@@ -124,6 +126,8 @@ func (s *Service) RunOnce(ctx context.Context) error {
 	if err := s.Heartbeat(ctx, false, work.WorkItemID); err != nil {
 		return err
 	}
+	stopProgressHeartbeats := s.startProgressHeartbeats(ctx, work.WorkItemID)
+	defer stopProgressHeartbeats()
 
 	events, err := s.runner.Prepare(ctx, work, s.manifestCacheDir)
 	if err != nil {
@@ -174,6 +178,28 @@ func (s *Service) RunOnce(ctx context.Context) error {
 		return err
 	}
 	return s.Heartbeat(ctx, true, "")
+}
+
+func (s *Service) startProgressHeartbeats(ctx context.Context, workItemID string) func() {
+	if s.progressInterval <= 0 {
+		return func() {}
+	}
+	heartbeatCtx, cancel := context.WithCancel(ctx)
+	ticker := time.NewTicker(s.progressInterval)
+	go func() {
+		defer ticker.Stop()
+		for {
+			select {
+			case <-heartbeatCtx.Done():
+				return
+			case <-ticker.C:
+				if err := s.Heartbeat(heartbeatCtx, false, workItemID); err != nil {
+					s.logger.Warn("progress heartbeat failed", "work_item_id", workItemID, "error", err)
+				}
+			}
+		}
+	}()
+	return cancel
 }
 
 func cloneMap[K comparable, V any](input map[K]V) map[K]V {
