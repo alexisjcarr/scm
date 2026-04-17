@@ -18,6 +18,10 @@ scm/
     php-app-two-hosts.yaml
   share/doc/scm/
     README.md
+    README.assets/
+      architecture-sequence.png
+      architecture-sequence.svg
+      architecture-sequence.puml
   sudoers/
     scmctld-agent
   install.sh

@@ -1,0 +1,46 @@
+@startuml
+actor "scmctl\n(operator)" as Operator
+participant "scmctld\n(control plane)" as ControlPlane
+database "system\ndurable state" as ControlPlaneDB
+participant "scmctld-agent" as Agent
+collections "JSON checkpoints\ncurrent-work / last-result" as Checkpoints
+participant "host runtime\n(packages / files / services)" as Host
+
+Operator -> ControlPlane: SubmitApply(manifest)
+activate ControlPlane
+ControlPlane -> ControlPlaneDB: persist apply + work items + events
+activate ControlPlaneDB
+deactivate ControlPlaneDB
+ControlPlane --> Operator: apply_id
+
+loop poll / heartbeat
+  Agent -> ControlPlane: Register / Heartbeat / FetchWork
+  ControlPlane -> ControlPlaneDB: claim one pending work item\nwith lease token
+  activate ControlPlaneDB
+  deactivate ControlPlaneDB
+  ControlPlane --> Agent: work item + manifest
+end
+
+activate Agent
+Agent -> Checkpoints: write current-work.json
+Agent -> Host: reconcile ordered resources
+activate Host
+Host --> Agent: changed / already converged
+deactivate Host
+Agent -> ControlPlane: ReportWorkStatus(events, terminal state)
+ControlPlane -> ControlPlaneDB: persist work status + event stream
+Agent -> ControlPlaneDB: write last-result.json
+Agent -> ControlPlaneDB: remove current-work.json
+activate ControlPlaneDB
+deactivate ControlPlaneDB
+deactivate Agent
+deactivate ControlPlane
+
+note over ControlPlane,Agent
+The intended operating model is a separately deployed control plane in
+the same trusted network or VPC as the managed fleet. Co-locating the
+control plane and agent on host A was a deliberate fallback for the
+take-home environment, where host credentials were available but the
+surrounding network policy was not.
+end note
+@enduml

@@ -27,6 +27,17 @@ For the take-home, I successfully demonstrated the full path on host A:
 3. `scmctld-agent` reconciled the host
 4. the host served `Hello, world!` over HTTP
 
+## Reviewer Guide
+
+If you only want the fastest path to a working demo, use the packaged Ubuntu flow in [Packaging / Install](#packaging--install) and then run `scm-host-a-demo`.
+
+If you want to inspect the code locally first:
+
+1. run the unit tests with `make test`
+2. start `scmctld` and `scmctld-agent` with the example configs
+3. submit one of the example manifests with `scmctl`
+4. use the control-plane UI at `http://127.0.0.1:8080` as the source of truth
+
 ## Architecture
 
 ### Operating model
@@ -44,50 +55,21 @@ This is an agent-pull design. The control plane does not SSH into hosts or use s
 The intended steady-state deployment model is:
 
 - `scmctld` deployed separately from managed hosts
+- durable system state shared by the control plane
 - `scmctld-agent` deployed 1:1 on managed hosts
 - all components living on the same trusted company network or VPC
 
-For the constrained demo, I co-located `scmctld` and `scmctld-agent` on host A. That was a practical fallback because I only had host credentials, not control over the surrounding AWS network policy.
+I intentionally designed this as a control plane plus pull-based agents rather than a per-host shell script. A simple script-per-box model can be fine for a toy environment, but it does not scale to a large fleet. I wanted the architecture to still make sense in an environment with thousands of hosts, with a central system of record, durable apply history, and per-host reconciliation.
 
-Host B should be able to call host A's `scmctld` over `8443/tcp` in a normal environment. The observed host B failure was environmental network policy, not a flaw in the control model.
+In the take-home environment, I only had host-level access. I did not have control over AWS security groups and I did not have a reliable view of the surrounding network topology. I confirmed that `scmctld` on host A was healthy, bound on `*:8443`, and not blocked by host-local firewalls, while host B still timed out to both the public and private addresses for host A. That pointed to network policy or routing outside the hosts themselves.
+
+Because of that constraint, I validated the full control-plane-plus-agent path independently on both hosts. That was a demo fallback, not the intended production architecture.
 
 ### Diagram
 
-```plantuml
-@startuml
-actor "Operator\nscmctl" as Operator
-participant "scmctld\ncontrol plane" as ControlPlane
-database "SQLite\ncontrol-plane state" as ControlPlaneDB
-participant "scmctld-agent\nhost A" as Agent
-collections "JSON checkpoints\ncurrent-work / last-result" as Checkpoints
-participant "Host runtime\npackages / files / services" as Host
+![Architecture sequence diagram](README.assets/architecture-sequence.svg)
 
-Operator -> ControlPlane: SubmitApply(manifest)
-ControlPlane -> ControlPlaneDB: persist apply + work items + events
-ControlPlane --> Operator: apply_id
-
-loop poll / heartbeat
-  Agent -> ControlPlane: Register / Heartbeat / FetchWork
-  ControlPlane -> ControlPlaneDB: claim one pending work item\nwith lease token
-  ControlPlane --> Agent: work item + manifest
-end
-
-Agent -> Checkpoints: write current-work.json
-Agent -> Host: reconcile ordered resources
-Host --> Agent: changed / already converged
-Agent -> Checkpoints: write last-result.json\nremove current-work.json
-Agent -> ControlPlane: ReportWorkStatus(events, terminal state)
-ControlPlane -> ControlPlaneDB: persist work status + event stream
-
-note over ControlPlane,Agent
-The intended operating model is a separately deployed control plane in
-the same trusted network or VPC as the managed fleet. Co-locating the
-control plane and agent on host A was a deliberate fallback for the
-take-home environment, where host credentials were available but the
-surrounding network policy was not.
-end note
-@enduml
-```
+PlantUML source: [README.assets/architecture-sequence.puml](README.assets/architecture-sequence.puml)
 
 ### Key implementation choices
 
@@ -170,27 +152,73 @@ Validation guarantees:
 
 Canonical examples:
 
-- [examples/manifests/nginx.yaml](/Users/alexisjcarr/learning/scm/examples/manifests/nginx.yaml)
-- [examples/manifests/php-app-host-a.yaml](/Users/alexisjcarr/learning/scm/examples/manifests/php-app-host-a.yaml)
-- [examples/manifests/php-app-two-hosts.yaml](/Users/alexisjcarr/learning/scm/examples/manifests/php-app-two-hosts.yaml)
+- [examples/manifests/nginx.yaml](examples/manifests/nginx.yaml)
+- [examples/manifests/php-app-host-a.yaml](examples/manifests/php-app-host-a.yaml)
+- [examples/manifests/php-app-two-hosts.yaml](examples/manifests/php-app-two-hosts.yaml)
 
-## Quickest Demo Path
+## Installation
+
+### Local prerequisites
+
+For local development:
+
+- Go 1.23+
+- `make`
+- a Unix-like environment with standard shell tools
+
+For the packaged host demo:
+
+- Ubuntu
+- `systemd`
+- `sudo`
+- `apt` / `dpkg`
+
+I did not optimize the primary demo path around Docker because package installation, service management, sudo policy, and host-local reconciliation are central to the problem. For this project, native Ubuntu packaging is a better fit than containerizing away the interesting parts.
+
+## Run and Test
 
 ### Local dev loop
 
+Build and test:
+
 ```bash
+make build
 make test
+```
+
+Start the control plane and agent with example configs:
+
+```bash
 go run ./cmd/scmctld -config ./configs/examples/scmctld.yaml
 go run ./cmd/scmctld-agent -config ./configs/examples/scmctld-agent.yaml
+```
+
+Validate and submit a manifest:
+
+```bash
 go run ./cmd/scmctl validate -f ./examples/manifests/nginx.yaml
 go run ./cmd/scmctl apply -f ./examples/manifests/nginx.yaml --server 127.0.0.1:8443
 ```
 
-Use `http://127.0.0.1:8080` and the apply detail page as the source of truth during local testing.
+Use `http://127.0.0.1:8080` and the apply detail page as the source of truth during local testing. The example configs are biased toward the packaged Ubuntu path under `/var/lib/scm/...`; for repo-local experimentation you can either override the paths or use the compose/dev config under `configs/dev`.
 
-### Take-home host A fallback
+### Packaged Ubuntu demo
 
-The fastest successful evaluator path is the host A fallback:
+Build a release bundle:
+
+```bash
+./scripts/release.sh dev
+```
+
+On Ubuntu:
+
+```bash
+tar -xzf scm_dev_linux_amd64.tar.gz
+cd scm
+sudo ./smoke.sh
+```
+
+The quickest successful evaluator path is the host A fallback:
 
 - run `scmctld` and `scmctld-agent` on host A
 - point the agent at `127.0.0.1:8443`
@@ -270,21 +298,13 @@ Expected result:
 - `200 OK`
 - response body includes `Hello, world!`
 
-## Packaging / Install
+### CI and automated checks
 
-Build release artifacts:
+The repository includes:
 
-```bash
-./scripts/release.sh dev
-```
-
-On Ubuntu:
-
-```bash
-tar -xzf scm_dev_linux_amd64.tar.gz
-cd scm
-sudo ./smoke.sh
-```
+- `make test` -> `./scripts/test.sh`
+- GitHub Actions CI at [.github/workflows/test.yml](.github/workflows/test.yml)
+- GitHub Actions packaged artifacts at [.github/workflows/artifacts.yml](.github/workflows/artifacts.yml)
 
 The release bundle includes:
 
@@ -302,6 +322,51 @@ Steady-state daemons run as dedicated service users:
 - `scmctld-agent`
 
 The agent uses a narrow sudoers policy for package, service, and privileged file operations instead of running the entire daemon as root.
+
+## Third-Party Tools and Libraries
+
+Primary third-party dependencies:
+
+- `google.golang.org/grpc`: gRPC transport between `scmctl`, `scmctld`, and `scmctld-agent`
+- `gopkg.in/yaml.v3`: manifest and config parsing
+- `github.com/prometheus/client_golang`: metrics instrumentation and Prometheus exposition
+- `modernc.org/sqlite`: embedded SQLite driver for the control-plane persistence layer
+
+System tools the agent intentionally relies on:
+
+- `apt-get` / `dpkg` for package reconciliation
+- `systemctl` for service reconciliation
+- `sudo` for narrowly scoped privileged operations
+- `journald` for host-local execution logs
+
+I did not use third-party hosted APIs. The system is self-contained aside from the OS package/service manager on Ubuntu hosts.
+
+## Major Design Choices
+
+### Agent-pull instead of SSH/push
+
+I chose an agent-pull model so the control plane can remain a scheduler and source of truth rather than a process that stores host credentials and reaches into machines over SSH. Each host runs its own agent, pulls work, and reconciles local state.
+
+### SQLite only in the control plane
+
+The control plane needs durable state for:
+
+- registered agents
+- applies
+- work items
+- event history
+
+SQLite was a good MVP tradeoff there: durable, simple, and sufficient for a small operational UI and recoverable work queue without adding more infrastructure during the take-home.
+
+I intentionally removed agent-local SQLite. The agent now keeps only a bounded JSON checkpoint on disk for crash recovery. That keeps the host-side persistence model simple while leaving the control plane as the canonical audit/history store.
+
+### Native Ubuntu packaging instead of a Docker-first demo
+
+This project manages packages, files, and services on Linux hosts. Because `apt`, `systemd`, `sudo`, and journald are part of the actual behavior being demonstrated, I treated native Ubuntu packaging and systemd units as the primary install path rather than hiding that behavior behind a container.
+
+### Explicit dependency graph in the DSL
+
+The manifest DSL supports `requires` and `notifies` so the executor can model ordering and change-triggered follow-up behavior intentionally. `requires` becomes a DAG and is topologically sorted before reconciliation, which gives predictable and explainable execution order instead of relying on file order.
 
 ## Tradeoffs and Known Limitations
 
