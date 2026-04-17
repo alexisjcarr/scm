@@ -44,6 +44,7 @@ func (f *fakeRepo) ClaimNextWork(context.Context, string, time.Duration, time.Ti
 func (f *fakeRepo) UpdateWork(context.Context, string, string, string, string, string, []cpdomain.ApplyEvent, time.Time) error {
 	return nil
 }
+func (f *fakeRepo) ReconcileStalled(context.Context, time.Time, time.Duration) error { return nil }
 
 func TestSubmitApplyCreatesOneWorkItemPerResolvedHost(t *testing.T) {
 	t.Parallel()
@@ -97,5 +98,14 @@ func TestFacadeUsesExtractedSubdomains(t *testing.T) {
 	}
 	if len(targets) != 2 {
 		t.Fatalf("expected 2 resolved targets, got %d", len(targets))
+	}
+}
+
+func TestAggregateStatusReturnsStalledWhenNoWorkIsProgressing(t *testing.T) {
+	t.Parallel()
+
+	got := applysvc.AggregateStatus([]string{cpdomain.WorkStatePending, cpdomain.WorkStateStalled})
+	if got != cpdomain.ApplyStatusStalled {
+		t.Fatalf("AggregateStatus() = %q, want %q", got, cpdomain.ApplyStatusStalled)
 	}
 }

@@ -484,6 +484,150 @@ func (r *SQLiteRepository) UpdateWork(ctx context.Context, agentID string, workI
 	return tx.Commit()
 }
 
+func (r *SQLiteRepository) ReconcileStalled(ctx context.Context, now time.Time, stalledAfter time.Duration) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin stalled reconcile tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	type agentSnapshot struct {
+		lastSeenAt time.Time
+	}
+	agents := make(map[string]agentSnapshot)
+	agentRows, err := tx.QueryContext(ctx, `SELECT host_id, last_seen_at FROM agents`)
+	if err != nil {
+		return fmt.Errorf("load agents for stalled reconcile: %w", err)
+	}
+	for agentRows.Next() {
+		var hostID, ts string
+		if err := agentRows.Scan(&hostID, &ts); err != nil {
+			agentRows.Close()
+			return fmt.Errorf("scan agent for stalled reconcile: %w", err)
+		}
+		lastSeenAt, err := time.Parse(time.RFC3339Nano, ts)
+		if err != nil {
+			agentRows.Close()
+			return fmt.Errorf("parse agent last_seen_at: %w", err)
+		}
+		agents[hostID] = agentSnapshot{lastSeenAt: lastSeenAt}
+	}
+	if err := agentRows.Err(); err != nil {
+		agentRows.Close()
+		return fmt.Errorf("iterate agents for stalled reconcile: %w", err)
+	}
+	agentRows.Close()
+
+	rows, err := tx.QueryContext(ctx, `
+		SELECT work_item_id, apply_id, host_id, state, lease_expires_at, updated_at
+		FROM work_items
+		WHERE state IN (?, ?, ?)`,
+		cpdomain.WorkStatePending, cpdomain.WorkStateAssigned, cpdomain.WorkStateRunning,
+	)
+	if err != nil {
+		return fmt.Errorf("load active work items for stalled reconcile: %w", err)
+	}
+	type candidate struct {
+		workItemID     string
+		applyID        string
+		hostID         string
+		state          string
+		leaseExpiresAt *time.Time
+		updatedAt      time.Time
+	}
+	var candidates []candidate
+	for rows.Next() {
+		var (
+			candidate candidate
+			leaseTS   sql.NullString
+			updatedTS string
+		)
+		if err := rows.Scan(&candidate.workItemID, &candidate.applyID, &candidate.hostID, &candidate.state, &leaseTS, &updatedTS); err != nil {
+			rows.Close()
+			return fmt.Errorf("scan work item for stalled reconcile: %w", err)
+		}
+		candidate.updatedAt, err = time.Parse(time.RFC3339Nano, updatedTS)
+		if err != nil {
+			rows.Close()
+			return fmt.Errorf("parse work updated_at: %w", err)
+		}
+		if leaseTS.Valid && leaseTS.String != "" {
+			leaseExpiresAt, err := time.Parse(time.RFC3339Nano, leaseTS.String)
+			if err != nil {
+				rows.Close()
+				return fmt.Errorf("parse lease_expires_at: %w", err)
+			}
+			candidate.leaseExpiresAt = &leaseExpiresAt
+		}
+		candidates = append(candidates, candidate)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return fmt.Errorf("iterate work items for stalled reconcile: %w", err)
+	}
+	rows.Close()
+
+	stallDeadline := now.Add(-stalledAfter)
+	affectedApplies := make(map[string]struct{})
+	for _, item := range candidates {
+		agent, ok := agents[item.hostID]
+		agentHealthy := ok && !agent.lastSeenAt.Before(stallDeadline)
+
+		shouldStall := false
+		summary := ""
+		switch item.state {
+		case cpdomain.WorkStatePending:
+			if !agentHealthy {
+				shouldStall = true
+				summary = "no healthy agent heartbeat for target host"
+			}
+		case cpdomain.WorkStateAssigned, cpdomain.WorkStateRunning:
+			if item.leaseExpiresAt != nil && item.leaseExpiresAt.Before(now) && !agentHealthy {
+				shouldStall = true
+				summary = "work lease expired without agent progress"
+			}
+		}
+		if !shouldStall {
+			continue
+		}
+
+		if _, err := tx.ExecContext(ctx, `
+			UPDATE work_items
+			SET state = ?, summary = ?, updated_at = ?
+			WHERE work_item_id = ?`,
+			cpdomain.WorkStateStalled, summary, now.Format(time.RFC3339Nano), item.workItemID,
+		); err != nil {
+			return fmt.Errorf("mark work item stalled: %w", err)
+		}
+
+		if err := insertEvents(ctx, tx, []cpdomain.ApplyEvent{{
+			ID:         fmt.Sprintf("%s-stalled", item.workItemID),
+			ApplyID:    item.applyID,
+			HostID:     item.hostID,
+			WorkItemID: item.workItemID,
+			Level:      "warn",
+			Phase:      "stalled",
+			Message:    summary,
+			CreatedAt:  now,
+		}}); err != nil {
+			return err
+		}
+		affectedApplies[item.applyID] = struct{}{}
+	}
+
+	for applyID := range affectedApplies {
+		status, err := aggregateApplyStatus(ctx, tx, applyID)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE applies SET status = ? WHERE apply_id = ?`, status, applyID); err != nil {
+			return fmt.Errorf("update stalled apply status: %w", err)
+		}
+	}
+
+	return tx.Commit()
+}
+
 func aggregateApplyStatus(ctx context.Context, tx *sql.Tx, applyID string) (string, error) {
 	rows, err := tx.QueryContext(ctx, `SELECT state FROM work_items WHERE apply_id = ?`, applyID)
 	if err != nil {

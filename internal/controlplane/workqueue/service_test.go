@@ -26,6 +26,10 @@ func (f *fakeStore) UpdateWork(context.Context, string, string, string, string, 
 	return nil
 }
 
+func (f *fakeStore) ReconcileStalled(context.Context, time.Time, time.Duration) error {
+	return nil
+}
+
 func TestFetchRequiresAgentID(t *testing.T) {
 	t.Parallel()
 

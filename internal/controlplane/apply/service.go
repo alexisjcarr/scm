@@ -111,6 +111,7 @@ func AggregateStatus(states []string) string {
 	allCompleted := true
 	anyRunning := false
 	anyFailed := false
+	anyStalled := false
 	for _, state := range states {
 		switch state {
 		case cpdomain.WorkStateFailed:
@@ -119,6 +120,9 @@ func AggregateStatus(states []string) string {
 		case cpdomain.WorkStateCompleted:
 		case cpdomain.WorkStateRunning, cpdomain.WorkStateAssigned:
 			anyRunning = true
+			allCompleted = false
+		case cpdomain.WorkStateStalled:
+			anyStalled = true
 			allCompleted = false
 		default:
 			allCompleted = false
@@ -132,6 +136,9 @@ func AggregateStatus(states []string) string {
 	}
 	if anyRunning {
 		return cpdomain.ApplyStatusRunning
+	}
+	if anyStalled {
+		return cpdomain.ApplyStatusStalled
 	}
 	return cpdomain.ApplyStatusPending
 }

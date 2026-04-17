@@ -49,6 +49,9 @@ func (s *Service) GetAgents(ctx context.Context) ([]cpdomain.Agent, error) {
 }
 
 func (s *Service) ListApplies(ctx context.Context) ([]cpdomain.Apply, error) {
+	if err := s.workqueue.ReconcileStalled(ctx); err != nil {
+		return nil, err
+	}
 	return s.applies.ListApplies(ctx)
 }
 
@@ -62,6 +65,9 @@ func (s *Service) SubmitApply(ctx context.Context, compiled manifestdomain.Compi
 }
 
 func (s *Service) GetApply(ctx context.Context, applyID string) (cpdomain.Apply, []cpdomain.WorkItem, error) {
+	if err := s.workqueue.ReconcileStalled(ctx); err != nil {
+		return cpdomain.Apply{}, nil, err
+	}
 	return s.applies.Get(ctx, applyID)
 }
 

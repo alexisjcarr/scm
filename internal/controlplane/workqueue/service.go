@@ -15,6 +15,7 @@ import (
 type Store interface {
 	ClaimNextWork(context.Context, string, time.Duration, time.Time) (*cpdomain.WorkItem, error)
 	UpdateWork(context.Context, string, string, string, string, string, []cpdomain.ApplyEvent, time.Time) error
+	ReconcileStalled(context.Context, time.Time, time.Duration) error
 }
 
 // Service owns work claiming and agent-reported state transitions.
@@ -34,6 +35,9 @@ func NewService(store Store, clk clock.Clock, leaseDuration time.Duration, metri
 func (s *Service) Fetch(ctx context.Context, agentID string) (*cpdomain.WorkItem, error) {
 	if agentID == "" {
 		return nil, errors.New("agent_id is required")
+	}
+	if err := s.store.ReconcileStalled(ctx, s.clock.Now(), s.leaseDuration*2); err != nil {
+		return nil, err
 	}
 	work, err := s.store.ClaimNextWork(ctx, agentID, s.leaseDuration, s.clock.Now())
 	if err != nil {
@@ -62,4 +66,9 @@ func (s *Service) Report(ctx context.Context, agentID string, workItemID string,
 		s.metrics.WorkReports.WithLabelValues(state).Inc()
 	}
 	return nil
+}
+
+// ReconcileStalled marks unprogressed work as stalled when agents or leases go stale.
+func (s *Service) ReconcileStalled(ctx context.Context) error {
+	return s.store.ReconcileStalled(ctx, s.clock.Now(), s.leaseDuration*2)
 }

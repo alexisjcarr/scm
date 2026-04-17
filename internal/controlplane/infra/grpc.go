@@ -78,7 +78,7 @@ func (s *GRPCServer) StreamApplyEvents(req *scmv1.StreamApplyEventsRequest, stre
 		if err != nil {
 			return err
 		}
-		if apply.Status == cpdomain.ApplyStatusCompleted || apply.Status == cpdomain.ApplyStatusFailed {
+		if apply.Status == cpdomain.ApplyStatusCompleted || apply.Status == cpdomain.ApplyStatusFailed || apply.Status == cpdomain.ApplyStatusStalled {
 			return nil
 		}
 

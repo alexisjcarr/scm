@@ -5,6 +5,7 @@ import "time"
 const (
 	ApplyStatusPending   = "pending"
 	ApplyStatusRunning   = "running"
+	ApplyStatusStalled   = "stalled"
 	ApplyStatusCompleted = "completed"
 	ApplyStatusFailed    = "failed"
 )
@@ -13,6 +14,7 @@ const (
 	WorkStatePending   = "pending"
 	WorkStateAssigned  = "assigned"
 	WorkStateRunning   = "running"
+	WorkStateStalled   = "stalled"
 	WorkStateCompleted = "completed"
 	WorkStateFailed    = "failed"
 )
