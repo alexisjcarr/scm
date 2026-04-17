@@ -344,13 +344,25 @@ func (r *SQLiteRepository) ClaimNextWork(ctx context.Context, agentID string, le
 	}
 	defer tx.Rollback()
 
+	var hostID string
+	if err := tx.QueryRowContext(ctx, `
+		SELECT host_id
+		FROM agents
+		WHERE agent_id = ?`, agentID,
+	).Scan(&hostID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("agent %q is not registered", agentID)
+		}
+		return nil, fmt.Errorf("load agent host for claim: %w", err)
+	}
+
 	var workID string
 	err = tx.QueryRowContext(ctx, `
 		SELECT work_item_id
 		FROM work_items
-		WHERE state = ?
+		WHERE state = ? AND host_id = ?
 		ORDER BY updated_at ASC
-		LIMIT 1`, cpdomain.WorkStatePending,
+		LIMIT 1`, cpdomain.WorkStatePending, hostID,
 	).Scan(&workID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

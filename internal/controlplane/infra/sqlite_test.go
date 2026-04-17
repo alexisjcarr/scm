@@ -76,6 +76,65 @@ func TestClaimNextWorkOnlyAllowsSingleWinner(t *testing.T) {
 	}
 }
 
+func TestClaimNextWorkOnlyReturnsWorkForAgentHost(t *testing.T) {
+	t.Parallel()
+
+	repo, err := NewSQLiteRepository("file:claim-next-work-by-host?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatalf("NewSQLiteRepository returned error: %v", err)
+	}
+	defer repo.Close()
+
+	now := time.Unix(1700000000, 0).UTC()
+	for _, agent := range []cpdomain.Agent{
+		{AgentID: "agent-1", HostID: "host-1", Version: "dev", Idle: true, LastSeenAt: now},
+		{AgentID: "agent-2", HostID: "host-2", Version: "dev", Idle: true, LastSeenAt: now},
+	} {
+		if err := repo.UpsertAgent(context.Background(), agent); err != nil {
+			t.Fatalf("UpsertAgent(%q) returned error: %v", agent.AgentID, err)
+		}
+	}
+
+	err = repo.CreateApply(context.Background(), cpdomain.Apply{
+		ApplyID:      "apply-1",
+		Name:         "nginx",
+		Status:       cpdomain.ApplyStatusPending,
+		SubmittedBy:  "tester",
+		RawManifest:  "raw",
+		ManifestJSON: "{}",
+		CreatedAt:    now,
+	}, []cpdomain.WorkItem{{
+		WorkItemID:   "work-1",
+		ApplyID:      "apply-1",
+		HostID:       "host-1",
+		State:        cpdomain.WorkStatePending,
+		ManifestJSON: "{}",
+		UpdatedAt:    now,
+	}}, nil)
+	if err != nil {
+		t.Fatalf("CreateApply returned error: %v", err)
+	}
+
+	got, err := repo.ClaimNextWork(context.Background(), "agent-2", time.Minute, now)
+	if err != nil {
+		t.Fatalf("ClaimNextWork(agent-2) returned error: %v", err)
+	}
+	if got != nil {
+		t.Fatalf("agent-2 claimed %+v, want nil because work targets host-1", got)
+	}
+
+	got, err = repo.ClaimNextWork(context.Background(), "agent-1", time.Minute, now)
+	if err != nil {
+		t.Fatalf("ClaimNextWork(agent-1) returned error: %v", err)
+	}
+	if got == nil {
+		t.Fatal("expected agent-1 to claim host-1 work")
+	}
+	if got.HostID != "host-1" {
+		t.Fatalf("claimed work host = %q, want host-1", got.HostID)
+	}
+}
+
 func TestReconcileStalledMarksPendingWorkWithoutHealthyAgent(t *testing.T) {
 	t.Parallel()
 

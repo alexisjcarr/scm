@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"time"
@@ -114,6 +115,9 @@ func (s *Service) RunOnce(ctx context.Context) error {
 	}
 
 	work := resp.WorkItem
+	if work.HostID != "" && work.HostID != s.hostID {
+		return fmt.Errorf("refusing work item %s for host %q on agent host %q", work.WorkItemID, work.HostID, s.hostID)
+	}
 	if s.metrics != nil {
 		s.metrics.WorkStarted.Inc()
 	}

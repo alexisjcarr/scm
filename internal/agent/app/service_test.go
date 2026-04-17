@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	scmv1 "github.com/alexisjcarr/scm/pkg/api/scm/v1"
@@ -84,5 +85,37 @@ func TestRunOnceDelegatesToRuntimeRunner(t *testing.T) {
 	}
 	if snapshot.LastWorkReportAt == "" {
 		t.Fatalf("expected a work report timestamp in snapshot")
+	}
+}
+
+func TestRunOnceRejectsWorkForDifferentHost(t *testing.T) {
+	t.Parallel()
+
+	client := &fakeClient{
+		fetchResp: &scmv1.FetchWorkResponse{
+			HasWork: true,
+			WorkItem: &scmv1.WorkItem{
+				WorkItemID:   "work-1",
+				ApplyID:      "apply-1",
+				HostID:       "node-2",
+				LeaseToken:   "lease",
+				ManifestJSON: "{}",
+			},
+		},
+	}
+
+	service := NewService(client, fakeRunner{}, nil, nil, "agent-1", "node-1", "dev", nil, nil, t.TempDir())
+	err := service.RunOnce(context.Background())
+	if err == nil {
+		t.Fatal("RunOnce returned nil, want host mismatch error")
+	}
+	if !strings.Contains(err.Error(), "refusing work item") {
+		t.Fatalf("RunOnce error = %v, want host mismatch refusal", err)
+	}
+	if got := len(client.reports); got != 0 {
+		t.Fatalf("expected no work reports after host mismatch, got %d", got)
+	}
+	if got := len(client.heartbeats); got != 1 {
+		t.Fatalf("expected only the initial idle heartbeat before refusal, got %d", got)
 	}
 }
