@@ -41,7 +41,7 @@ func RunDaemon(ctx context.Context, cfg config.AgentConfig) error {
 	agentMetrics := platformmetrics.NewAgentMetrics(reg)
 	client := scmv1.NewAgentServiceClient(conn)
 	runner := agentruntime.NewRunner(repo, agentinfra.NewLinuxBackend(), agentMetrics)
-	service := NewService(client, runner, logger, agentMetrics, cfg.AgentID, cfg.HostID, version.Version, cfg.Labels, []string{"packages", "files", "services"}, cfg.ManifestCacheDir)
+	service := NewService(client, runner, logger, agentMetrics, cfg.AgentID, cfg.HostID, version.Version, cfg.Labels, []string{"packages", "files", "services"}, cfg.AuthToken, cfg.ManifestCacheDir)
 	httpServer := &http.Server{
 		Addr:              cfg.MetricsListenAddress,
 		Handler:           NewDiagnosticsHandler(reg, service),

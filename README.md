@@ -223,6 +223,8 @@ Required config values:
 grpc_listen_address: ":8443"
 http_listen_address: ":8080"
 database_path: "/var/lib/scm/scmctld.db"
+agent_auth_tokens:
+  demo-host-1-agent: "demo-host-1-token"
 log_level: "info"
 log_json: false
 lease_duration: 2m
@@ -237,6 +239,7 @@ manifest_cache_dir: "/var/lib/scm/scmctld-agent/manifests"
 metrics_listen_address: ":9108"
 host_id: "demo-host-1"
 agent_id: "demo-host-1-agent"
+auth_token: "demo-host-1-token"
 labels:
   role: "web"
   env: "demo"

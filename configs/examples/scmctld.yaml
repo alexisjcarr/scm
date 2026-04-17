@@ -1,6 +1,8 @@
 grpc_listen_address: ":8443"
 http_listen_address: ":8080"
 database_path: "/var/lib/scm/scmctld.db"
+agent_auth_tokens:
+  demo-host-1-agent: "demo-host-1-token"
 log_level: "info"
 log_json: false
 lease_duration: 2m

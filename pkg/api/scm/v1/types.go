@@ -96,6 +96,7 @@ type StreamApplyEventsRequest struct {
 type RegisterAgentRequest struct {
 	AgentID      string            `json:"agent_id,omitempty"`
 	HostID       string            `json:"host_id,omitempty"`
+	AuthToken    string            `json:"auth_token,omitempty"`
 	Version      string            `json:"version,omitempty"`
 	Labels       map[string]string `json:"labels,omitempty"`
 	Capabilities []string          `json:"capabilities,omitempty"`
@@ -107,6 +108,7 @@ type RegisterAgentResponse struct {
 
 type HeartbeatRequest struct {
 	AgentID           string `json:"agent_id,omitempty"`
+	AuthToken         string `json:"auth_token,omitempty"`
 	Idle              bool   `json:"idle,omitempty"`
 	CurrentWorkItemID string `json:"current_work_item_id,omitempty"`
 }
@@ -116,7 +118,8 @@ type HeartbeatResponse struct {
 }
 
 type FetchWorkRequest struct {
-	AgentID string `json:"agent_id,omitempty"`
+	AgentID   string `json:"agent_id,omitempty"`
+	AuthToken string `json:"auth_token,omitempty"`
 }
 
 type WorkItem struct {
@@ -137,6 +140,7 @@ type FetchWorkResponse struct {
 
 type ReportWorkStatusRequest struct {
 	AgentID    string        `json:"agent_id,omitempty"`
+	AuthToken  string        `json:"auth_token,omitempty"`
 	WorkItemID string        `json:"work_item_id,omitempty"`
 	LeaseToken string        `json:"lease_token,omitempty"`
 	State      string        `json:"state,omitempty"`

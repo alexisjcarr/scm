@@ -35,7 +35,7 @@ func RunDaemon(ctx context.Context, cfg config.ControlPlaneConfig) error {
 	reg := platformmetrics.NewRegistry()
 	service := cpapp.NewService(repo, clock.RealClock{}, cfg.LeaseDuration, platformmetrics.NewControlPlaneMetrics(reg))
 	grpcServer := grpcutil.NewServer(logger)
-	handler := NewGRPCServer(service)
+	handler := NewGRPCServer(service, cfg.AgentAuthTokens)
 	scmv1.RegisterApplyServiceServer(grpcServer, handler)
 	scmv1.RegisterAgentServiceServer(grpcServer, handler)
 

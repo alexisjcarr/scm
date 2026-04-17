@@ -39,11 +39,12 @@ type Service struct {
 	version          string
 	labels           map[string]string
 	capabilities     []string
+	authToken        string
 	manifestCacheDir string
 	progressInterval time.Duration
 }
 
-func NewService(client ControlPlaneClient, runner RuntimeRunner, logger *slog.Logger, metrics *platformmetrics.AgentMetrics, agentID, hostID, version string, labels map[string]string, capabilities []string, manifestCacheDir string) *Service {
+func NewService(client ControlPlaneClient, runner RuntimeRunner, logger *slog.Logger, metrics *platformmetrics.AgentMetrics, agentID, hostID, version string, labels map[string]string, capabilities []string, authToken string, manifestCacheDir string) *Service {
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
@@ -58,6 +59,7 @@ func NewService(client ControlPlaneClient, runner RuntimeRunner, logger *slog.Lo
 		version:          version,
 		labels:           cloneMap(labels),
 		capabilities:     append([]string(nil), capabilities...),
+		authToken:        authToken,
 		manifestCacheDir: manifestCacheDir,
 		progressInterval: 30 * time.Second,
 	}
@@ -67,6 +69,7 @@ func (s *Service) Register(ctx context.Context) error {
 	_, err := s.client.RegisterAgent(ctx, &scmv1.RegisterAgentRequest{
 		AgentID:      s.agentID,
 		HostID:       s.hostID,
+		AuthToken:    s.authToken,
 		Version:      s.version,
 		Labels:       cloneMap(s.labels),
 		Capabilities: append([]string(nil), s.capabilities...),
@@ -82,6 +85,7 @@ func (s *Service) Register(ctx context.Context) error {
 func (s *Service) Heartbeat(ctx context.Context, idle bool, currentWorkItemID string) error {
 	_, err := s.client.Heartbeat(ctx, &scmv1.HeartbeatRequest{
 		AgentID:           s.agentID,
+		AuthToken:         s.authToken,
 		Idle:              idle,
 		CurrentWorkItemID: currentWorkItemID,
 	})
@@ -107,7 +111,7 @@ func (s *Service) RunOnce(ctx context.Context) error {
 		return err
 	}
 
-	resp, err := s.client.FetchWork(ctx, &scmv1.FetchWorkRequest{AgentID: s.agentID})
+	resp, err := s.client.FetchWork(ctx, &scmv1.FetchWorkRequest{AgentID: s.agentID, AuthToken: s.authToken})
 	if err != nil {
 		s.status.markConnectionFailure()
 		return err
@@ -135,6 +139,7 @@ func (s *Service) RunOnce(ctx context.Context) error {
 	}
 	if _, err := s.client.ReportWorkStatus(ctx, &scmv1.ReportWorkStatusRequest{
 		AgentID:    s.agentID,
+		AuthToken:  s.authToken,
 		WorkItemID: work.WorkItemID,
 		LeaseToken: work.LeaseToken,
 		State:      "running",
@@ -164,6 +169,7 @@ func (s *Service) RunOnce(ctx context.Context) error {
 
 	if _, reportErr := s.client.ReportWorkStatus(ctx, &scmv1.ReportWorkStatusRequest{
 		AgentID:    s.agentID,
+		AuthToken:  s.authToken,
 		WorkItemID: work.WorkItemID,
 		LeaseToken: work.LeaseToken,
 		State:      finalState,

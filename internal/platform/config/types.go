@@ -51,12 +51,13 @@ func (c CLIConfig) Validate() error {
 
 // ControlPlaneConfig configures scmctld.
 type ControlPlaneConfig struct {
-	GRPCListenAddress string        `yaml:"grpc_listen_address"`
-	HTTPListenAddress string        `yaml:"http_listen_address"`
-	DatabasePath      string        `yaml:"database_path"`
-	LogLevel          string        `yaml:"log_level"`
-	LogJSON           bool          `yaml:"log_json"`
-	LeaseDuration     time.Duration `yaml:"lease_duration"`
+	GRPCListenAddress string            `yaml:"grpc_listen_address"`
+	HTTPListenAddress string            `yaml:"http_listen_address"`
+	DatabasePath      string            `yaml:"database_path"`
+	AgentAuthTokens   map[string]string `yaml:"agent_auth_tokens"`
+	LogLevel          string            `yaml:"log_level"`
+	LogJSON           bool              `yaml:"log_json"`
+	LeaseDuration     time.Duration     `yaml:"lease_duration"`
 }
 
 func DefaultControlPlaneConfig() ControlPlaneConfig {
@@ -64,6 +65,7 @@ func DefaultControlPlaneConfig() ControlPlaneConfig {
 		GRPCListenAddress: ":8443",
 		HTTPListenAddress: ":8080",
 		DatabasePath:      "/var/lib/scm/scmctld.db",
+		AgentAuthTokens:   map[string]string{"localhost-agent": "dev-agent-token"},
 		LogLevel:          "info",
 		LogJSON:           false,
 		LeaseDuration:     2 * time.Minute,
@@ -95,6 +97,14 @@ func (c ControlPlaneConfig) Validate() error {
 	if c.DatabasePath == "" {
 		return fmt.Errorf("database_path is required")
 	}
+	if len(c.AgentAuthTokens) == 0 {
+		return fmt.Errorf("agent_auth_tokens must contain at least one agent token")
+	}
+	for agentID, token := range c.AgentAuthTokens {
+		if agentID == "" || token == "" {
+			return fmt.Errorf("agent_auth_tokens must not contain empty agent ids or tokens")
+		}
+	}
 	if c.LeaseDuration <= 0 {
 		return fmt.Errorf("lease_duration must be greater than zero")
 	}
@@ -109,6 +119,7 @@ type AgentConfig struct {
 	MetricsListenAddress string            `yaml:"metrics_listen_address"`
 	HostID               string            `yaml:"host_id"`
 	AgentID              string            `yaml:"agent_id"`
+	AuthToken            string            `yaml:"auth_token"`
 	Labels               map[string]string `yaml:"labels"`
 	LogLevel             string            `yaml:"log_level"`
 	LogJSON              bool              `yaml:"log_json"`
@@ -124,6 +135,7 @@ func DefaultAgentConfig() AgentConfig {
 		MetricsListenAddress: ":9108",
 		HostID:               "localhost",
 		AgentID:              "localhost-agent",
+		AuthToken:            "dev-agent-token",
 		Labels:               map[string]string{"env": "dev"},
 		LogLevel:             "info",
 		LogJSON:              false,
@@ -165,6 +177,9 @@ func (c AgentConfig) Validate() error {
 	}
 	if c.AgentID == "" {
 		return fmt.Errorf("agent_id is required")
+	}
+	if c.AuthToken == "" {
+		return fmt.Errorf("auth_token is required")
 	}
 	if c.PollInterval <= 0 {
 		return fmt.Errorf("poll_interval must be greater than zero")

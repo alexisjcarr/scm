@@ -56,6 +56,7 @@ func (r *SQLiteRepository) initSchema() error {
 			current_work_item_id TEXT NOT NULL,
 			last_seen_at TEXT NOT NULL
 		);`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_agents_host_id ON agents(host_id);`,
 		`CREATE TABLE IF NOT EXISTS applies (
 			apply_id TEXT PRIMARY KEY,
 			name TEXT NOT NULL,
@@ -344,23 +345,16 @@ func (r *SQLiteRepository) ClaimNextWork(ctx context.Context, agentID string, le
 	}
 	defer tx.Rollback()
 
-	var (
-		hostID            string
-		idle              bool
-		currentWorkItemID string
-	)
+	var hostID string
 	if err := tx.QueryRowContext(ctx, `
-		SELECT host_id, idle, current_work_item_id
+		SELECT host_id
 		FROM agents
 		WHERE agent_id = ?`, agentID,
-	).Scan(&hostID, &idle, &currentWorkItemID); err != nil {
+	).Scan(&hostID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("agent %q is not registered", agentID)
 		}
 		return nil, fmt.Errorf("load agent host for claim: %w", err)
-	}
-	if !idle || currentWorkItemID != "" {
-		return nil, nil
 	}
 
 	var workID string
@@ -401,11 +395,16 @@ func (r *SQLiteRepository) ClaimNextWork(ctx context.Context, agentID string, le
 		return nil, nil
 	}
 
-	if _, err := tx.ExecContext(ctx, `
+	busyResult, err := tx.ExecContext(ctx, `
 		UPDATE agents
 		SET idle = 0, current_work_item_id = ?, last_seen_at = ?
-		WHERE agent_id = ?`, workID, now.Format(time.RFC3339Nano), agentID); err != nil {
+		WHERE agent_id = ? AND idle = 1 AND current_work_item_id = ''`, workID, now.Format(time.RFC3339Nano), agentID)
+	if err != nil {
 		return nil, fmt.Errorf("mark agent busy: %w", err)
+	}
+	affected, _ = busyResult.RowsAffected()
+	if affected == 0 {
+		return nil, nil
 	}
 
 	rows, err := tx.QueryContext(ctx, `

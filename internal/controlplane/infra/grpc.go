@@ -3,6 +3,7 @@ package infra
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	cpapp "github.com/alexisjcarr/scm/internal/controlplane/app"
@@ -17,11 +18,12 @@ type GRPCServer struct {
 	scmv1.UnimplementedApplyServiceServer
 	scmv1.UnimplementedAgentServiceServer
 
-	service *cpapp.Service
+	service         *cpapp.Service
+	agentAuthTokens map[string]string
 }
 
-func NewGRPCServer(service *cpapp.Service) *GRPCServer {
-	return &GRPCServer{service: service}
+func NewGRPCServer(service *cpapp.Service, agentAuthTokens map[string]string) *GRPCServer {
+	return &GRPCServer{service: service, agentAuthTokens: cloneMap(agentAuthTokens)}
 }
 
 func (s *GRPCServer) SubmitApply(ctx context.Context, req *scmv1.SubmitApplyRequest) (*scmv1.SubmitApplyResponse, error) {
@@ -91,6 +93,9 @@ func (s *GRPCServer) StreamApplyEvents(req *scmv1.StreamApplyEventsRequest, stre
 }
 
 func (s *GRPCServer) RegisterAgent(ctx context.Context, req *scmv1.RegisterAgentRequest) (*scmv1.RegisterAgentResponse, error) {
+	if err := s.authenticateAgent(req.AgentID, req.AuthToken); err != nil {
+		return nil, err
+	}
 	agent, err := s.service.RegisterAgent(ctx, inventory.RegisterInput{
 		AgentID:      req.AgentID,
 		HostID:       req.HostID,
@@ -105,6 +110,9 @@ func (s *GRPCServer) RegisterAgent(ctx context.Context, req *scmv1.RegisterAgent
 }
 
 func (s *GRPCServer) Heartbeat(ctx context.Context, req *scmv1.HeartbeatRequest) (*scmv1.HeartbeatResponse, error) {
+	if err := s.authenticateAgent(req.AgentID, req.AuthToken); err != nil {
+		return nil, err
+	}
 	if err := s.service.Heartbeat(ctx, req.AgentID, req.Idle, req.CurrentWorkItemID); err != nil {
 		return nil, err
 	}
@@ -112,6 +120,9 @@ func (s *GRPCServer) Heartbeat(ctx context.Context, req *scmv1.HeartbeatRequest)
 }
 
 func (s *GRPCServer) FetchWork(ctx context.Context, req *scmv1.FetchWorkRequest) (*scmv1.FetchWorkResponse, error) {
+	if err := s.authenticateAgent(req.AgentID, req.AuthToken); err != nil {
+		return nil, err
+	}
 	workItem, err := s.service.FetchWork(ctx, req.AgentID)
 	if err != nil {
 		return nil, err
@@ -135,6 +146,9 @@ func (s *GRPCServer) FetchWork(ctx context.Context, req *scmv1.FetchWorkRequest)
 }
 
 func (s *GRPCServer) ReportWorkStatus(ctx context.Context, req *scmv1.ReportWorkStatusRequest) (*scmv1.ReportWorkStatusResponse, error) {
+	if err := s.authenticateAgent(req.AgentID, req.AuthToken); err != nil {
+		return nil, err
+	}
 	events := make([]cpdomain.ApplyEvent, 0, len(req.Events))
 	for _, event := range req.Events {
 		ts, err := time.Parse(time.RFC3339Nano, event.CreatedAt)
@@ -156,6 +170,17 @@ func (s *GRPCServer) ReportWorkStatus(ctx context.Context, req *scmv1.ReportWork
 		return nil, err
 	}
 	return &scmv1.ReportWorkStatusResponse{Status: "ok"}, nil
+}
+
+func (s *GRPCServer) authenticateAgent(agentID, authToken string) error {
+	expectedToken, ok := s.agentAuthTokens[agentID]
+	if !ok || expectedToken == "" {
+		return fmt.Errorf("agent %q is not authorized", agentID)
+	}
+	if authToken != expectedToken {
+		return errors.New("agent authentication failed")
+	}
+	return nil
 }
 
 func (s *GRPCServer) ListAgents(ctx context.Context, _ *scmv1.ListAgentsRequest) (*scmv1.ListAgentsResponse, error) {

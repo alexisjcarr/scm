@@ -31,6 +31,11 @@ func TestControlPlaneConfigValidate(t *testing.T) {
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("expected database path validation error")
 	}
+	cfg = DefaultControlPlaneConfig()
+	cfg.AgentAuthTokens = nil
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected agent auth tokens validation error")
+	}
 }
 
 func TestAgentConfigValidate(t *testing.T) {
@@ -53,6 +58,11 @@ func TestAgentConfigValidate(t *testing.T) {
 	cfg.RunTimeout = 0
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("expected run timeout validation error")
+	}
+	cfg = DefaultAgentConfig()
+	cfg.AuthToken = ""
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected auth token validation error")
 	}
 }
 
@@ -99,6 +109,7 @@ func TestLoadAgentConfigReadsFileAndValidates(t *testing.T) {
 		"metrics_listen_address: :9108\n" +
 		"host_id: web-1\n" +
 		"agent_id: web-1-agent\n" +
+		"auth_token: secret-token\n" +
 		"poll_interval: 10s\n" +
 		"run_timeout: 2m\n")
 	if err := os.WriteFile(configPath, data, 0o644); err != nil {

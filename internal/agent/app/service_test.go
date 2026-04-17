@@ -77,7 +77,7 @@ func TestRunOnceDelegatesToRuntimeRunner(t *testing.T) {
 		},
 	}
 
-	service := NewService(client, fakeRunner{}, nil, nil, "agent-1", "node-1", "dev", nil, nil, t.TempDir())
+	service := NewService(client, fakeRunner{}, nil, nil, "agent-1", "node-1", "dev", nil, nil, "test-token", t.TempDir())
 	if err := service.RunOnce(context.Background()); err != nil {
 		t.Fatalf("RunOnce returned error: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestRunOnceRejectsWorkForDifferentHost(t *testing.T) {
 		},
 	}
 
-	service := NewService(client, fakeRunner{}, nil, nil, "agent-1", "node-1", "dev", nil, nil, t.TempDir())
+	service := NewService(client, fakeRunner{}, nil, nil, "agent-1", "node-1", "dev", nil, nil, "test-token", t.TempDir())
 	err := service.RunOnce(context.Background())
 	if err == nil {
 		t.Fatal("RunOnce returned nil, want host mismatch error")
@@ -175,7 +175,7 @@ func TestRunOnceSendsProgressHeartbeatsWhileExecuting(t *testing.T) {
 		started: make(chan struct{}),
 		release: make(chan struct{}),
 	}
-	service := NewService(client, runner, nil, nil, "agent-1", "node-1", "dev", nil, nil, t.TempDir())
+	service := NewService(client, runner, nil, nil, "agent-1", "node-1", "dev", nil, nil, "test-token", t.TempDir())
 	service.progressInterval = 5 * time.Millisecond
 
 	done := make(chan error, 1)
