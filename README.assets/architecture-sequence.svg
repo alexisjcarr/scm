@@ -1,132 +1,163 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1560" height="980" viewBox="0 0 1560 980">
-  <rect x="0" y="0" width="1560" height="980" fill="#ffffff" />
+<svg xmlns="http://www.w3.org/2000/svg" width="1820" height="1020" viewBox="0 0 1820 1020">
+  <rect x="0" y="0" width="1820" height="1020" fill="#ffffff" />
 
-  <!-- top participant boxes -->
+  <!-- participant boxes -->
   <g fill="#eef2f7" stroke="#4b5563" stroke-width="2">
-    <rect x="40" y="30" width="220" height="82" rx="12" />
-    <rect x="300" y="30" width="290" height="82" rx="12" />
-    <rect x="630" y="30" width="270" height="82" rx="12" />
-    <rect x="940" y="30" width="270" height="82" rx="12" />
-    <rect x="1240" y="30" width="300" height="82" rx="12" />
+    <rect x="40" y="30" width="210" height="82" rx="12" />
+    <rect x="290" y="30" width="260" height="82" rx="12" />
+    <rect x="590" y="30" width="280" height="82" rx="12" />
+    <rect x="910" y="30" width="240" height="82" rx="12" />
+    <rect x="1190" y="30" width="250" height="82" rx="12" />
+    <rect x="1480" y="30" width="300" height="82" rx="12" />
+
+    <rect x="40" y="908" width="210" height="82" rx="12" />
+    <rect x="290" y="908" width="260" height="82" rx="12" />
+    <rect x="590" y="908" width="280" height="82" rx="12" />
+    <rect x="910" y="908" width="240" height="82" rx="12" />
+    <rect x="1190" y="908" width="250" height="82" rx="12" />
+    <rect x="1480" y="908" width="300" height="82" rx="12" />
   </g>
 
-  <!-- bottom participant boxes -->
-  <g fill="#eef2f7" stroke="#4b5563" stroke-width="2">
-    <rect x="40" y="868" width="220" height="82" rx="12" />
-    <rect x="300" y="868" width="290" height="82" rx="12" />
-    <rect x="630" y="868" width="270" height="82" rx="12" />
-    <rect x="940" y="868" width="270" height="82" rx="12" />
-    <rect x="1240" y="868" width="300" height="82" rx="12" />
-  </g>
-
-  <!-- box labels -->
+  <!-- labels -->
   <g fill="#111827" font-family="Helvetica, Arial, sans-serif" font-size="20" font-weight="500" text-anchor="middle">
-    <text x="150" y="52">
-      <tspan x="150" dy="0">scmctl</tspan>
-      <tspan x="150" dy="22">(operator)</tspan>
+    <text x="145" y="52">
+      <tspan x="145" dy="0">scmctl</tspan>
+      <tspan x="145" dy="22">(operator)</tspan>
     </text>
-    <text x="445" y="52">
-      <tspan x="445" dy="0">scmctld</tspan>
-      <tspan x="445" dy="22">(control plane)</tspan>
+    <text x="420" y="52">
+      <tspan x="420" dy="0">scmctld</tspan>
+      <tspan x="420" dy="22">(control plane)</tspan>
     </text>
-    <text x="765" y="52">
-      <tspan x="765" dy="0">system</tspan>
-      <tspan x="765" dy="22">durable state</tspan>
+    <text x="730" y="52">
+      <tspan x="730" dy="0">system</tspan>
+      <tspan x="730" dy="22">durable state</tspan>
     </text>
-    <text x="1075" y="79">scmctld-agent</text>
-    <text x="1390" y="52">
-      <tspan x="1390" dy="0">host runtime</tspan>
-      <tspan x="1390" dy="22">(packages / files / services)</tspan>
+    <text x="1030" y="79">scmctld-agent</text>
+    <text x="1315" y="52">
+      <tspan x="1315" dy="0">local checkpoints</tspan>
+      <tspan x="1315" dy="22">(current-work / last-result)</tspan>
+    </text>
+    <text x="1630" y="52">
+      <tspan x="1630" dy="0">host runtime</tspan>
+      <tspan x="1630" dy="22">(packages / files / services)</tspan>
     </text>
 
-    <text x="150" y="890">
-      <tspan x="150" dy="0">scmctl</tspan>
-      <tspan x="150" dy="22">(operator)</tspan>
+    <text x="145" y="930">
+      <tspan x="145" dy="0">scmctl</tspan>
+      <tspan x="145" dy="22">(operator)</tspan>
     </text>
-    <text x="445" y="890">
-      <tspan x="445" dy="0">scmctld</tspan>
-      <tspan x="445" dy="22">(control plane)</tspan>
+    <text x="420" y="930">
+      <tspan x="420" dy="0">scmctld</tspan>
+      <tspan x="420" dy="22">(control plane)</tspan>
     </text>
-    <text x="765" y="890">
-      <tspan x="765" dy="0">system</tspan>
-      <tspan x="765" dy="22">durable state</tspan>
+    <text x="730" y="930">
+      <tspan x="730" dy="0">system</tspan>
+      <tspan x="730" dy="22">durable state</tspan>
     </text>
-    <text x="1075" y="917">scmctld-agent</text>
-    <text x="1390" y="890">
-      <tspan x="1390" dy="0">host runtime</tspan>
-      <tspan x="1390" dy="22">(packages / files / services)</tspan>
+    <text x="1030" y="957">scmctld-agent</text>
+    <text x="1315" y="930">
+      <tspan x="1315" dy="0">local checkpoints</tspan>
+      <tspan x="1315" dy="22">(current-work / last-result)</tspan>
+    </text>
+    <text x="1630" y="930">
+      <tspan x="1630" dy="0">host runtime</tspan>
+      <tspan x="1630" dy="22">(packages / files / services)</tspan>
     </text>
   </g>
 
   <!-- lifelines -->
   <g stroke="#9ca3af" stroke-width="2">
-    <line x1="150" y1="112" x2="150" y2="868" />
-    <line x1="445" y1="112" x2="445" y2="868" />
-    <line x1="765" y1="112" x2="765" y2="868" />
-    <line x1="1075" y1="112" x2="1075" y2="868" />
-    <line x1="1390" y1="112" x2="1390" y2="868" />
+    <line x1="145" y1="112" x2="145" y2="908" />
+    <line x1="420" y1="112" x2="420" y2="908" />
+    <line x1="730" y1="112" x2="730" y2="908" />
+    <line x1="1030" y1="112" x2="1030" y2="908" />
+    <line x1="1315" y1="112" x2="1315" y2="908" />
+    <line x1="1630" y1="112" x2="1630" y2="908" />
   </g>
 
   <!-- loop box -->
-  <rect x="560" y="270" width="650" height="160" rx="18" fill="#eff6ff" fill-opacity="0.55" stroke="#2563eb" stroke-width="3" />
-  <text x="582" y="298" fill="#111827" font-family="Helvetica, Arial, sans-serif" font-size="18">loop: register / heartbeat / FetchWork</text>
+  <rect x="860" y="340" width="560" height="240" rx="18" fill="#eff6ff" fill-opacity="0.55" stroke="#2563eb" stroke-width="3" />
+  <text x="882" y="368" fill="#111827" font-family="Helvetica, Arial, sans-serif" font-size="18">loop: register / heartbeat / FetchWork</text>
 
   <!-- arrows -->
   <g stroke="#111827" stroke-width="3" fill="#111827">
-    <line x1="150" y1="170" x2="445" y2="170" />
-    <polygon points="445,170 427,162 427,178" />
+    <line x1="145" y1="170" x2="420" y2="170" />
+    <polygon points="420,170 402,162 402,178" />
 
-    <line x1="445" y1="230" x2="765" y2="230" />
-    <polygon points="765,230 747,222 747,238" />
+    <path d="M 420 205 C 470 205, 470 245, 420 245" fill="none" />
+    <polygon points="420,245 438,237 438,253" />
 
-    <line x1="765" y1="260" x2="445" y2="260" />
-    <polygon points="445,260 463,252 463,268" />
+    <line x1="420" y1="280" x2="730" y2="280" />
+    <polygon points="730,280 712,272 712,288" />
 
-    <line x1="445" y1="330" x2="1075" y2="330" />
-    <polygon points="1075,330 1057,322 1057,338" />
+    <line x1="730" y1="310" x2="420" y2="310" />
+    <polygon points="420,310 438,302 438,318" />
 
-    <line x1="445" y1="360" x2="765" y2="360" />
-    <polygon points="765,360 747,352 747,368" />
+    <line x1="420" y1="340" x2="145" y2="340" />
+    <polygon points="145,340 163,332 163,348" />
 
-    <line x1="765" y1="390" x2="445" y2="390" />
-    <polygon points="445,390 463,382 463,398" />
+    <line x1="1030" y1="400" x2="420" y2="400" />
+    <polygon points="420,400 438,392 438,408" />
 
-    <line x1="1075" y1="470" x2="1390" y2="470" />
-    <polygon points="1390,470 1372,462 1372,478" />
+    <line x1="1030" y1="440" x2="420" y2="440" />
+    <polygon points="420,440 438,432 438,448" />
 
-    <line x1="1390" y1="500" x2="1075" y2="500" />
-    <polygon points="1075,500 1093,492 1093,508" />
+    <line x1="1030" y1="480" x2="420" y2="480" />
+    <polygon points="420,480 438,472 438,488" />
 
-    <line x1="1075" y1="570" x2="765" y2="570" />
-    <polygon points="765,570 783,562 783,578" />
+    <line x1="420" y1="520" x2="730" y2="520" />
+    <polygon points="730,520 712,512 712,528" />
 
-    <line x1="1075" y1="640" x2="445" y2="640" />
-    <polygon points="445,640 463,632 463,648" />
+    <line x1="730" y1="550" x2="420" y2="550" />
+    <polygon points="420,550 438,542 438,558" />
 
-    <line x1="445" y1="670" x2="765" y2="670" />
-    <polygon points="765,670 747,662 747,678" />
+    <line x1="420" y1="580" x2="1030" y2="580" />
+    <polygon points="1030,580 1012,572 1012,588" />
 
-    <line x1="1075" y1="720" x2="765" y2="720" />
-    <polygon points="765,720 783,712 783,728" />
+    <line x1="1030" y1="640" x2="1315" y2="640" />
+    <polygon points="1315,640 1297,632 1297,648" />
 
-    <line x1="1075" y1="750" x2="765" y2="750" />
-    <polygon points="765,750 783,742 783,758" />
+    <line x1="1030" y1="700" x2="1630" y2="700" />
+    <polygon points="1630,700 1612,692 1612,708" />
+
+    <line x1="1630" y1="740" x2="1030" y2="740" />
+    <polygon points="1030,740 1048,732 1048,748" />
+
+    <line x1="1030" y1="800" x2="420" y2="800" />
+    <polygon points="420,800 438,792 438,808" />
+
+    <line x1="420" y1="840" x2="730" y2="840" />
+    <polygon points="730,840 712,832 712,848" />
+
+    <line x1="1030" y1="870" x2="1315" y2="870" />
+    <polygon points="1315,870 1297,862 1297,878" />
+
+    <line x1="1030" y1="900" x2="1315" y2="900" />
+    <polygon points="1315,900 1297,892 1297,908" />
   </g>
 
   <!-- message labels -->
   <g fill="#111827" font-family="Helvetica, Arial, sans-serif" font-size="18">
     <text x="205" y="152">SubmitApply(manifest)</text>
-    <text x="470" y="212">persist apply + work items + events</text>
-    <text x="560" y="246">apply_id</text>
-    <text x="810" y="348">claim one pending work item</text>
-    <text x="810" y="372">with lease token</text>
-    <text x="520" y="408">work item + manifest</text>
-    <text x="1115" y="452">reconcile ordered resources</text>
-    <text x="1125" y="524">changed / already converged</text>
-    <text x="825" y="552">write current-work.json</text>
-    <text x="640" y="622">ReportWorkStatus(events, terminal state)</text>
-    <text x="470" y="692">persist work status + event stream</text>
-    <text x="835" y="708">write last-result.json</text>
-    <text x="820" y="778">remove current-work.json</text>
+    <text x="470" y="198">assign apply_id</text>
+    <text x="450" y="262">persist apply + work items + events</text>
+    <text x="510" y="296">ack persisted apply</text>
+    <text x="245" y="332">apply_id</text>
+
+    <text x="790" y="392">RegisterAgent</text>
+    <text x="815" y="432">Heartbeat</text>
+    <text x="820" y="472">FetchWork</text>
+    <text x="445" y="512">claim one pending work item with lease</text>
+    <text x="505" y="542">ack claimed work</text>
+    <text x="610" y="572">FetchWorkResponse(work item + manifest)</text>
+
+    <text x="1080" y="632">write current-work.json</text>
+    <text x="1135" y="692">reconcile ordered resources</text>
+    <text x="1160" y="764">changed / already converged</text>
+    <text x="560" y="792">ReportWorkStatus(events, terminal state)</text>
+    <text x="450" y="832">persist work status + event stream</text>
+    <text x="1085" y="862">write last-result.json</text>
+    <text x="1070" y="892">remove current-work.json</text>
   </g>
+
 </svg>

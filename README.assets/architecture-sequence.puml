@@ -3,22 +3,27 @@ actor "scmctl\n(operator)" as Operator
 participant "scmctld\n(control plane)" as ControlPlane
 database "system\ndurable state" as ControlPlaneDB
 participant "scmctld-agent" as Agent
-collections "JSON checkpoints\ncurrent-work / last-result" as Checkpoints
+collections "local checkpoints\n(current-work / last-result)" as Checkpoints
 participant "host runtime\n(packages / files / services)" as Host
 
 Operator -> ControlPlane: SubmitApply(manifest)
 activate ControlPlane
+ControlPlane -> ControlPlane: assign apply_id
 ControlPlane -> ControlPlaneDB: persist apply + work items + events
 activate ControlPlaneDB
+ControlPlaneDB --> ControlPlane: ack persisted apply
 deactivate ControlPlaneDB
 ControlPlane --> Operator: apply_id
 
 loop poll / heartbeat
-  Agent -> ControlPlane: Register / Heartbeat / FetchWork
+  Agent -> ControlPlane: RegisterAgent
+  Agent -> ControlPlane: Heartbeat
+  Agent -> ControlPlane: FetchWork
   ControlPlane -> ControlPlaneDB: claim one pending work item\nwith lease token
   activate ControlPlaneDB
+  ControlPlaneDB --> ControlPlane: ack claimed work
   deactivate ControlPlaneDB
-  ControlPlane --> Agent: work item + manifest
+  ControlPlane --> Agent: FetchWorkResponse(work item + manifest)
 end
 
 activate Agent
@@ -38,9 +43,6 @@ deactivate ControlPlane
 
 note over ControlPlane,Agent
 The intended operating model is a separately deployed control plane in
-the same trusted network or VPC as the managed fleet. Co-locating the
-control plane and agent on a single host was a deliberate fallback for the
-project environment, where network access to the hosts was available but the
-surrounding network policy was not.
+the same trusted network or VPC as the managed fleet. This project was validated both as a local multi-process setup and as standalone deployments on separate hosts while preserving the intended control-plane-plus-agent architecture.
 end note
 @enduml
