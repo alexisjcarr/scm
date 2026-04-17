@@ -64,15 +64,20 @@ check_file "${ROOT_DIR}/etc/scm/scmctld-agent.yaml.example"
 sudo_if_needed "${ROOT_DIR}/install.sh"
 
 cat <<'EOF'
-Edit these config files before using the installed services:
+Install completed. Before starting services, edit:
   /etc/scm/scmctld.yaml
   /etc/scm/scmctld-agent.yaml
 
 Standalone demo values:
   scmctld database_path: /var/lib/scm/scmctld.db
+  scmctld agent_auth_tokens:
+    demo-host-1-agent: demo-host-1-token
   scmctld-agent control_plane_address: 127.0.0.1:8443
   scmctld-agent state_dir: /var/lib/scm/scmctld-agent/state
   scmctld-agent manifest_cache_dir: /var/lib/scm/scmctld-agent/manifests
+  scmctld-agent host_id: demo-host-1
+  scmctld-agent agent_id: demo-host-1-agent
+  scmctld-agent auth_token: demo-host-1-token
   scmctld-agent poll_interval: 5s
   scmctld-agent run_timeout: 5m
 
@@ -93,9 +98,12 @@ fi
 
 cat <<'EOF'
 
-Next checks:
-  systemctl status scmctld --no-pager
-  systemctl status scmctld-agent --no-pager
-  curl http://127.0.0.1:9108/readyz
-  scm-demo
+Optional packaging sanity check complete.
+
+Recommended next steps:
+  1. Edit /etc/scm/scmctld.yaml and /etc/scm/scmctld-agent.yaml
+  2. sudo systemctl restart scmctld scmctld-agent
+  3. curl http://127.0.0.1:9108/readyz
+  4. scmctl validate -f /usr/local/share/scm/examples/manifests/php-app-single-host.yaml
+  5. scmctl apply -f /usr/local/share/scm/examples/manifests/php-app-single-host.yaml --server 127.0.0.1:8443
 EOF

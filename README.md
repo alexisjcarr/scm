@@ -34,6 +34,7 @@ For this project, I validated the end-to-end workflow on two separate Ubuntu hos
 - `journald` provides the host-local execution log
 
 This is an agent-pull design. The control plane does not SSH into hosts or store host credentials to perform changes directly. The agent keeps only a bounded JSON checkpoint on disk for crash recovery, which keeps the host-side persistence model simple while leaving the control plane as the canonical audit/history store.
+Agents authenticate with per-agent tokens before they can register, heartbeat, fetch work, or report status.
 
 ### Intended topology
 
@@ -78,6 +79,7 @@ The control plane needs durable state for registered agents, requested changes, 
 The control plane data model is also a natural fit for a relational store: inventory, desired changes, work assignment, and execution history are related records, and work claiming needs safe, atomic state transitions.
 
 At larger scale, I would move the control plane onto a separate RDBMS rather than keeping SQLite embedded in-process. With control-plane persistence externalized, `scmctld` becomes straightforward to scale horizontally because inventory, desired changes, work assignment, and execution history are centralized rather than tied to a single process.
+The control plane also enforces a 1:1 mapping between registered agents and managed hosts.
 
 ### Explicit dependency graph in the DSL
 
@@ -159,7 +161,7 @@ Example manifests:
 
 ### Quick project path
 
-If you only want the fastest path to a working demo, use the packaged Ubuntu flow in [Installation](#installation) and then run `scm-demo`.
+If you only want the fastest path to a working demo, use the packaged Ubuntu flow in [Installation](#installation) and then run the explicit `scmctl validate` / `scmctl apply` commands shown there.
 
 If you want to inspect the code locally first:
 
@@ -180,8 +182,8 @@ make test
 Start the control plane and agent with example configs:
 
 ```bash
-go run ./cmd/scmctld -config ./configs/examples/scmctld.yaml
-go run ./cmd/scmctld-agent -config ./configs/examples/scmctld-agent.yaml
+go run ./cmd/scmctld -config ./configs/dev/scmctld.yaml
+go run ./cmd/scmctld-agent -config ./configs/dev/scmctld-agent.yaml
 ```
 
 Validate and submit a manifest:
@@ -191,7 +193,7 @@ go run ./cmd/scmctl validate -f ./examples/manifests/nginx.yaml
 go run ./cmd/scmctl apply -f ./examples/manifests/nginx.yaml --server 127.0.0.1:8443
 ```
 
-Use `http://127.0.0.1:8080`, the apply detail page, or `scmctl --watch` during local testing. The example configs are biased toward the packaged Ubuntu path under `/var/lib/scm/...`; for repo-local experimentation you can either override the paths or use the Compose/dev config under `configs/dev`.
+Use `http://127.0.0.1:8080`, the apply detail page, or `scmctl --watch` during local testing. The `configs/dev` files are intended for repo-local runs and write under `./var/`; the `configs/examples` files are biased toward the packaged Ubuntu path under `/var/lib/scm/...`.
 
 ### Packaged Ubuntu demo
 
@@ -206,14 +208,16 @@ On Ubuntu:
 ```bash
 tar -xzf scm_dev_linux_amd64.tar.gz
 cd scm
-sudo ./smoke.sh
+sudo ./install.sh
 ```
 
-The quickest successful evaluator path is the standalone packaged demo:
+The quickest successful path is a standalone packaged demo on one host:
 
-- run `scmctld` and `scmctld-agent` on the same host
-- point the agent at `127.0.0.1:8443`
-- use the single-host PHP manifest
+1. install the bundle with `sudo ./install.sh`
+2. update `/etc/scm/scmctld.yaml` and `/etc/scm/scmctld-agent.yaml` with the values below
+3. start both services with `sudo systemctl enable --now scmctld scmctld-agent`
+4. verify the control plane and agent are healthy
+5. validate and apply the single-host PHP manifest
 
 Required config values:
 
@@ -249,11 +253,23 @@ poll_interval: 5s
 run_timeout: 5m
 ```
 
-The installed helper path is:
+Start and verify the services:
 
 ```bash
-sudo ./smoke.sh
-scm-demo
+sudo systemctl daemon-reload
+sudo systemctl enable --now scmctld scmctld-agent
+systemctl status scmctld --no-pager
+systemctl status scmctld-agent --no-pager
+curl http://127.0.0.1:8080
+curl http://127.0.0.1:9108/readyz
+```
+
+Then run the demo apply:
+
+```bash
+# manifests are installed under /usr/local/share/scm/examples/manifests
+scmctl validate -f /usr/local/share/scm/examples/manifests/php-app-single-host.yaml
+scmctl apply -f /usr/local/share/scm/examples/manifests/php-app-single-host.yaml --server 127.0.0.1:8443
 ```
 
 I used this same standalone deployment pattern on two separate hosts. Each host ran its own control plane and agent locally, and each successfully converged the PHP app to `Hello, world!`.
