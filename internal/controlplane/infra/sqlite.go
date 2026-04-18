@@ -112,11 +112,19 @@ func (r *SQLiteRepository) UpsertAgent(ctx context.Context, agent cpdomain.Agent
 		return fmt.Errorf("marshal agent capabilities: %w", err)
 	}
 
+	var existingHostID string
+	err = r.db.QueryRowContext(ctx, `SELECT host_id FROM agents WHERE agent_id = ?`, agent.AgentID).Scan(&existingHostID)
+	switch {
+	case err == nil && existingHostID != agent.HostID:
+		return fmt.Errorf("upsert agent: agent %q is already bound to host %q", agent.AgentID, existingHostID)
+	case err != nil && !errors.Is(err, sql.ErrNoRows):
+		return fmt.Errorf("lookup existing agent host binding: %w", err)
+	}
+
 	_, err = r.db.ExecContext(ctx, `
 		INSERT INTO agents (agent_id, host_id, version, labels_json, capabilities_json, idle, current_work_item_id, last_seen_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(agent_id) DO UPDATE SET
-			host_id=excluded.host_id,
 			version=excluded.version,
 			labels_json=excluded.labels_json,
 			capabilities_json=excluded.capabilities_json,

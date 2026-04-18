@@ -323,6 +323,36 @@ func TestUpsertAgentRejectsDuplicateHostIDs(t *testing.T) {
 	}
 }
 
+func TestUpsertAgentRejectsChangingExistingAgentHostBinding(t *testing.T) {
+	t.Parallel()
+
+	repo, err := NewSQLiteRepository("file:agent-host-rebind?mode=memory&cache=shared")
+	if err != nil {
+		t.Fatalf("NewSQLiteRepository returned error: %v", err)
+	}
+	defer repo.Close()
+
+	now := time.Unix(1700000000, 0).UTC()
+	if err := repo.UpsertAgent(context.Background(), cpdomain.Agent{
+		AgentID:    "agent-1",
+		HostID:     "host-1",
+		Version:    "dev",
+		Idle:       true,
+		LastSeenAt: now,
+	}); err != nil {
+		t.Fatalf("UpsertAgent(agent-1) returned error: %v", err)
+	}
+	if err := repo.UpsertAgent(context.Background(), cpdomain.Agent{
+		AgentID:    "agent-1",
+		HostID:     "host-2",
+		Version:    "dev",
+		Idle:       true,
+		LastSeenAt: now,
+	}); err == nil {
+		t.Fatal("expected host rebinding upsert to fail")
+	}
+}
+
 func TestUpdateWorkNormalizesEventMetadataFromStoredWorkItem(t *testing.T) {
 	t.Parallel()
 
