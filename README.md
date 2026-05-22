@@ -2,6 +2,8 @@
 
 `scm` is a host configuration management system written in Go. I intentionally designed it as a distributed service rather than a one-off script.
 
+I built this project to see if I could design and implement a configuration manager from first principles, then compare the resulting shape and tradeoffs to established systems like Puppet, Chef, and kubelet-shaped control planes. The value of the project is not novelty; it is the architectural reasoning, correctness properties, and operational tradeoffs involved in building a small but real config-management system.
+
 ## What I Built
 
 The system supports:
@@ -49,10 +51,6 @@ The intended steady-state deployment model is:
 
 I intentionally designed this as a control plane plus pull-based agents rather than a per-host shell script. The goal was to build something that still makes sense beyond the first one or two machines, with a central system of record, durable change history, and per-host reconciliation.
 
-I was constrained by the project environment because I only had host-level access to two Linux hosts. I did not have control over network security groups, and I did not have a reliable view of the surrounding VPC configuration or network topology. I initially tried to deploy `scmctld` and `scmctld-agent` on one host and only `scmctld-agent` on the other, but I could not establish the required connectivity from the remote agent back to `scmctld`.
-
-Because of that constraint, I validated the intended multi-process shape locally with Docker Compose, and I validated the full control-plane-plus-agent path on the provided infrastructure by deploying the full system independently on each host. That was a demo fallback, not the intended production architecture.
-
 ## Major Design Choices
 
 ### Code structure and boundaries
@@ -74,7 +72,7 @@ Work dispatch is agent-pulled and lease-backed. Agents register, heartbeat, and 
 
 ### SQLite only in the control plane
 
-The control plane needs durable state for registered agents, requested changes, assigned work, and execution history. SQLite was a good tradeoff for this project: durable, simple, and sufficient for the control-plane UI and recoverable work queue without adding more infrastructure.
+The control plane needs durable state for registered agents, requested changes, assigned work, and execution history. SQLite was the right MVP tradeoff for this project: durable, simple, and sufficient for the control-plane UI and recoverable work queue without adding more infrastructure.
 
 The control plane data model is also a natural fit for a relational store: inventory, desired changes, work assignment, and execution history are related records, and work claiming needs safe, atomic state transitions.
 
@@ -85,7 +83,7 @@ The control plane also enforces a 1:1 mapping between registered agents and mana
 
 The manifest DSL supports `requires` and `notifies` so the executor can model ordering and change-triggered follow-up behavior intentionally. `requires` becomes a DAG and is topologically sorted before reconciliation, which gives predictable and explainable execution order instead of relying on file order.
 
-That is more machinery than this project strictly required, but I included it because production configuration management needs explicit ordering semantics. I wanted reconciliation order to be intentional and explainable rather than an accident of manifest layout.
+That is more machinery than this initial implementation strictly required, but I included it because production configuration management needs explicit ordering semantics. I wanted reconciliation order to be intentional and explainable rather than an accident of manifest layout.
 
 ## Manifest DSL
 
@@ -153,6 +151,7 @@ Validation guarantees:
 
 Example manifests:
 
+- [examples/manifests/local-dev.yaml](examples/manifests/local-dev.yaml)
 - [examples/manifests/nginx.yaml](examples/manifests/nginx.yaml)
 - [examples/manifests/php-app-single-host.yaml](examples/manifests/php-app-single-host.yaml)
 - [examples/manifests/php-app-two-hosts.yaml](examples/manifests/php-app-two-hosts.yaml)
@@ -166,8 +165,8 @@ If you only want the fastest path to a working demo, use the packaged Ubuntu flo
 If you want to inspect the code locally first:
 
 1. run the unit tests with `make test`
-2. start `scmctld` and `scmctld-agent` with the example configs
-3. submit one of the example manifests with `scmctl`
+2. start `scmctld` and `scmctld-agent` with the checked-in dev configs
+3. submit the non-privileged local dev manifest with `scmctl`
 4. use the control-plane UI at `http://127.0.0.1:8080` to inspect inventory and apply state
 
 ### Local dev loop
@@ -179,21 +178,21 @@ make build
 make test
 ```
 
-Start the control plane and agent with example configs:
+Start the control plane and agent in separate terminals:
 
 ```bash
 go run ./cmd/scmctld -config ./configs/dev/scmctld.yaml
 go run ./cmd/scmctld-agent -config ./configs/dev/scmctld-agent.yaml
 ```
 
-Validate and submit a manifest:
+Validate and submit the repo-local manifest:
 
 ```bash
-go run ./cmd/scmctl validate -f ./examples/manifests/nginx.yaml
-go run ./cmd/scmctl apply -f ./examples/manifests/nginx.yaml --server 127.0.0.1:8443
+go run ./cmd/scmctl validate -f ./examples/manifests/local-dev.yaml
+go run ./cmd/scmctl apply -config ./configs/dev/scmctl.yaml -f ./examples/manifests/local-dev.yaml
 ```
 
-Use `http://127.0.0.1:8080`, the apply detail page, or `scmctl --watch` during local testing. The `configs/dev` files are intended for repo-local runs and write under `./var/`; the `configs/examples` files are biased toward the packaged Ubuntu path under `/var/lib/scm/...`.
+Use `http://127.0.0.1:8080`, the apply detail page, or `scmctl --watch` during local testing. This dev path writes only under `./var/` and does not require root or privileged file operations. The `configs/examples` files are biased toward the packaged Ubuntu path under `/var/lib/scm/...`.
 
 ### Packaged Ubuntu demo
 
