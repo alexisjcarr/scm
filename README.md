@@ -1,6 +1,6 @@
 # Simple Config Manager (scm)
 
-`scm` is a host configuration management system written in Go. I intentionally designed it as a distributed service rather than a one-off script.
+`scm` is a host configuration management system written in Go.
 
 I built this project to see if I could design and implement a configuration manager from first principles, then compare the resulting shape and tradeoffs to established systems like Puppet, Chef, and kubelet-shaped control planes. The value of the project is not novelty; it is the architectural reasoning, correctness properties, and operational tradeoffs involved in building a small but real config-management system.
 
